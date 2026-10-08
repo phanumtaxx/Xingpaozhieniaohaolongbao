@@ -1,0 +1,54 @@
+plugins { id 'fabric-loom' version '1.10.5' }
+version = project.mod_version
+group = 'dev.xingclient'
+base { archivesName = 'xingpaozhieniaohaolongbao-1.21.5' }
+repositories {
+    mavenCentral()
+    maven {
+        url = 'https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1'
+        content { includeGroup 'me.djtheredstoner' }
+    }
+}
+dependencies {
+    minecraft 'com.mojang:minecraft:1.21.5'
+    mappings 'net.fabricmc:yarn:1.21.5+build.1:v2'
+    modImplementation 'net.fabricmc:fabric-loader:0.19.3'
+    modRuntimeOnly 'me.djtheredstoner:DevAuth-fabric:1.2.2'
+    include implementation('javazoom:jlayer:1.0.1')
+    include modImplementation(fabricApi.module('fabric-api-base', '0.128.2+1.21.5'))
+    include modImplementation(fabricApi.module('fabric-resource-loader-v0', '0.128.2+1.21.5'))
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+java { toolchain.languageVersion = JavaLanguageVersion.of(21); withSourcesJar() }
+tasks.withType(JavaCompile).configureEach { options.release = 21 }
+processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand version: project.version } }
+test { useJUnitPlatform() }
+def authenticatedLaunch = project.hasProperty('devAuth') && !project.hasProperty('guiSmoke') && !project.hasProperty('worldSmoke')
+def devAuthDirectory = layout.projectDirectory.dir('run/devauth')
+tasks.register('prepareDevAuth') {
+    onlyIf { authenticatedLaunch }
+    doLast {
+        def config = devAuthDirectory.file('config.toml').asFile
+        if (!config.exists()) {
+            config.parentFile.mkdirs()
+            config.setText('defaultEnabled = false\ndefaultAccount = "main"\n\n[accounts.main]\ntype = "microsoft"\n', 'UTF-8')
+        }
+    }
+}
+loom {
+    runs {
+        client {
+            client()
+            vmArg "-Ddevauth.enabled=${authenticatedLaunch}"
+            vmArg "-Ddevauth.configDir=${devAuthDirectory.asFile.absolutePath}"
+            if (project.hasProperty('guiSmoke') || project.hasProperty('worldSmoke')) {
+                vmArg project.hasProperty('worldSmoke') ? '-Dxingclient.worldSmoke=true' : '-Dxingclient.smoke=true'
+                programArgs '--width', '1440', '--height', '900'
+            }
+        }
+    }
+}
+tasks.named('runClient') { dependsOn 'prepareDevAuth' }
+tasks.withType(JavaExec).configureEach { if (project.hasProperty('guiSmoke') || project.hasProperty('worldSmoke')) environment 'ALSOFT_DRIVERS', 'null' }

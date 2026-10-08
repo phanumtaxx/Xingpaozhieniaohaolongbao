@@ -1,0 +1,182 @@
+[
+  {
+    "name": "Combat",
+    "modules": [
+      "AutoArmor",
+      "AutoBowRelease",
+      "AutoCrystal",
+      "AutoTrap",
+      "Blocker",
+      "Criticals",
+      "HoleBuilder",
+      "HoleFill",
+      "KillAura",
+      "Mainhand",
+      "Offhand",
+      "PearlLauncher",
+      "SelfBow",
+      "SelfFill",
+      "SelfTrap",
+      "Suicide",
+      "Surround"
+    ],
+    "on": [
+      "AutoCrystal",
+      "Blocker",
+      "KillAura",
+      "Offhand"
+    ]
+  },
+  {
+    "name": "Player",
+    "modules": [
+      "AirPlace",
+      "FastPlace",
+      "MultiTask",
+      "NoEntityTrace",
+      "NoInteract",
+      "PingSpoof",
+      "Reach",
+      "Replenish",
+      "SpeedMine",
+      "Swing",
+      "ThrowFirework",
+      "ThrowPearl",
+      "ThrowXP"
+    ],
+    "on": [
+      "FastPlace",
+      "MultiTask",
+      "NoInteract",
+      "Reach",
+      "Replenish",
+      "SpeedMine"
+    ]
+  },
+  {
+    "name": "Visuals",
+    "modules": [
+      "Atmosphere",
+      "BlockHighlight",
+      "BreakHighlight",
+      "Chams",
+      "Compass",
+      "Crosshair",
+      "ESP",
+      "EntityModifier",
+      "FOVModifier",
+      "Freecam",
+      "FullBright",
+      "HandProgress",
+      "HoleESP",
+      "NameTags",
+      "NoRender",
+      "PhaseESP",
+      "PopChams",
+      "RangeVisualizer",
+      "Shaders",
+      "TextESP",
+      "Tracers",
+      "Trails",
+      "ViewClip",
+      "ViewModel"
+    ],
+    "on": [
+      "Atmosphere",
+      "BlockHighlight",
+      "BreakHighlight",
+      "Compass",
+      "Crosshair",
+      "FOVModifier",
+      "FullBright",
+      "HandProgress",
+      "HoleESP",
+      "NameTags",
+      "NoRender",
+      "PhaseESP",
+      "PopChams",
+      "RangeVisualizer",
+      "Shaders",
+      "TextESP",
+      "Trails",
+      "ViewClip",
+      "ViewModel"
+    ]
+  },
+  {
+    "name": "Movement",
+    "modules": [
+      "FakeLag",
+      "FastAccel",
+      "FastFall",
+      "HitboxDesync",
+      "HoleSnap",
+      "InventoryControl",
+      "LagRange",
+      "NoRotate",
+      "NoSlow",
+      "Phase",
+      "Speed",
+      "Sprint",
+      "Step",
+      "TickShift",
+      "Velocity"
+    ],
+    "on": [
+      "InventoryControl",
+      "NoRotate",
+      "NoSlow",
+      "Sprint",
+      "Velocity"
+    ]
+  },
+  {
+    "name": "Miscellaneous",
+    "modules": [
+      "Assist",
+      "AutoKit",
+      "AutoReconnect",
+      "AutoRespawn",
+      "BetterChat",
+      "FastLatency",
+      "FrameSpoofer",
+      "LagNotify",
+      "MouseFix",
+      "NameProtect",
+      "Notifications",
+      "ServerHandshake",
+      "Timer"
+    ],
+    "on": [
+      "AutoReconnect",
+      "AutoRespawn",
+      "BetterChat",
+      "FastLatency",
+      "LagNotify",
+      "Notifications"
+    ]
+  },
+  {
+    "name": "Core",
+    "modules": [
+      "Chat",
+      "ClickGui",
+      "Color",
+      "Font",
+      "HUD",
+      "Renders",
+      "Robotics",
+      "Rotations",
+      "Waypoints"
+    ],
+    "on": [
+      "Chat",
+      "ClickGui",
+      "Color",
+      "Font",
+      "HUD",
+      "Renders",
+      "Rotations"
+    ]
+  }
+]

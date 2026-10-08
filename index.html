@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Xingpaozhieniaohaolongbao Client</title>
+  <link rel="icon" href="mascot.png" type="image/png"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="interface">
+    <header class="topbar">
+      <h1>Xingpaozhieniaohaolongbao <span>Client</span></h1>
+      <div class="tools"><input id="search" placeholder="search" aria-label="Search modules" autocomplete="off"><button id="reset" title="Restore panel positions">layout</button><button id="appearance" aria-expanded="false">appearance</button></div>
+    </header>
+    <main id="workspace" aria-label="Client module categories"></main>
+    <img class="mascot" src="mascot.png" alt="Xingpaozhieniaohaolongbao Client mascot" draggable="false">
+    <aside id="appearance-panel" hidden>
+      <div class="popover-title">Appearance<button id="close-appearance" aria-label="Close appearance">×</button></div>
+      <label>pink <input id="accent" type="color" value="#edacd0"></label>
+      <label>blue <input id="secondary" type="color" value="#a6d6f4"></label>
+      <label>panel opacity <input id="opacity" type="range" min="40" max="100" value="90"></label>
+      <label>show mascot <input id="show-mascot" type="checkbox" checked></label>
+      <label>cherry blossoms <input id="show-blossoms" type="checkbox" checked></label>
+      <button id="restore-theme">restore cotton candy</button>
+    </aside>
+    <canvas id="blossoms" aria-hidden="true"></canvas>
+  </div>
+  <button id="reopen" hidden>open clickgui <kbd>rshift</kbd></button>
+  <div id="toast" role="status"></div><script src="app.js"></script><script src="blossoms.js"></script>
+</body>
+</html>

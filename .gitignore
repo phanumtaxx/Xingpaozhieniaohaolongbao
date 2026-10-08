@@ -1,0 +1,13 @@
+.gradle/
+build/
+run/
+.qa/
+*.log
+.devauth/
+**/microsoft_accounts.json
+logs/
+.idea/
+*.iml
+.env
+.env.*
+!.env.example

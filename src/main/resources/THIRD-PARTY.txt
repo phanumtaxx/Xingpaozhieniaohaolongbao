@@ -1,0 +1,9 @@
+JLayer 1.0.1 (javazoom:jlayer:1.0.1)
+Copyright JavaZOOM and JLayer contributors.
+Unmodified MP3 decoder, bundled as a separate replaceable library under META-INF/jars.
+License: GNU LGPL 2.1 or later. See JLayer-LGPL-2.1.txt.
+Project and original source: https://sourceforge.net/projects/javalayer/files/
+Maven source artifact: https://repo.maven.apache.org/maven2/javazoom/jlayer/1.0.1/jlayer-1.0.1-sources.jar
+
+Jost Regular: see assets/xingclient/Jost-OFL.txt.
+Menu soundtrack: the user's supplied Stay With Me ~ Mayonaka no Door.mp3.

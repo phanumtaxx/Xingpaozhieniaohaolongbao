@@ -1,0 +1,43 @@
+const {chromium}=require('./.qa/node_modules/playwright-core');
+const assert=require('node:assert/strict');
+const {pathToFileURL}=require('node:url');
+const path=require('node:path');
+(async()=>{
+  const browser=await chromium.launch({executablePath:'C:/Users/jgiam/AppData/Local/ms-playwright/chromium-1223/chrome-win64/chrome.exe',headless:true});
+  try {
+    const page=await browser.newPage({viewport:{width:1440,height:900},reducedMotion:'no-preference'});
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.goto(pathToFileURL(path.resolve('index.html')).href);
+    await page.evaluate(()=>document.fonts.ready);
+    const canvas=page.locator('#blossoms');
+    const initial=await canvas.evaluate(c=>c.toDataURL());
+    await page.waitForFunction(previous=>document.querySelector('#blossoms').toDataURL()!==previous,initial);
+    assert.equal(await canvas.evaluate(c=>getComputedStyle(c).pointerEvents),'none');
+    assert.equal(await page.locator('.module-toggle').first().evaluate(e=>getComputedStyle(e).fontSize),'16px');
+    assert.equal(await page.locator('.category-name').first().evaluate(e=>getComputedStyle(e).fontSize),'15px');
+    assert(await canvas.evaluate(c=>Number(getComputedStyle(c).zIndex)>Number(getComputedStyle(document.querySelector('#workspace')).zIndex)));
+    const armor=page.getByRole('button',{name:'AutoArmor',exact:true});await armor.click();assert.equal(await armor.getAttribute('aria-pressed'),'true');await armor.click();
+    await page.screenshot({path:'.qa/blossoms-desktop.png'});
+    await page.getByRole('button',{name:'appearance',exact:true}).click();
+    await page.getByLabel('cherry blossoms',{exact:true}).uncheck();assert.equal(await canvas.isVisible(),false);
+    await page.reload();assert.equal(await canvas.isVisible(),false);
+    await page.getByRole('button',{name:'appearance',exact:true}).click();await page.getByLabel('cherry blossoms',{exact:true}).check();assert.equal(await canvas.isVisible(),true);
+    await page.getByRole('button',{name:'Close appearance',exact:true}).click();
+    await page.keyboard.press('ShiftRight');assert.equal(await canvas.isVisible(),false);
+    await page.keyboard.press('ShiftRight');assert.equal(await canvas.isVisible(),true);
+    await page.emulateMedia({reducedMotion:'reduce'});await page.reload();assert.equal(await canvas.isVisible(),true);
+    const reducedFrame=await canvas.evaluate(c=>c.toDataURL());
+    await page.waitForFunction(previous=>document.querySelector('#blossoms').toDataURL()!==previous,reducedFrame);
+    await page.getByRole('button',{name:'appearance',exact:true}).click();await page.getByLabel('cherry blossoms',{exact:true}).uncheck();assert.equal(await canvas.isVisible(),false);
+    await page.getByLabel('cherry blossoms',{exact:true}).check();assert.equal(await canvas.isVisible(),true);
+    await page.getByRole('button',{name:'Close appearance',exact:true}).click();
+    await page.screenshot({path:'.qa/blossoms-reduced-motion-fixed.png'});
+    await page.emulateMedia({reducedMotion:'no-preference'});
+    await page.setViewportSize({width:900,height:720});await page.evaluate(()=>document.fonts.ready);
+    assert.equal(await page.locator('.module-toggle').first().evaluate(e=>getComputedStyle(e).fontSize),'15px');
+    const overflow=await page.locator('.module-toggle').evaluateAll(els=>els.filter(el=>el.scrollWidth>el.clientWidth).map(el=>el.textContent));assert.deepEqual(overflow,[]);
+    await page.screenshot({path:'.qa/blossoms-small.png'});
+    assert.deepEqual(errors,[]);
+    console.log('PASS: animated foreground canvas, click-through, larger module font, unchanged headers, saved toggle, menu hide/resume, explicit toggle works with reduced-motion enabled, narrow label fit; no JavaScript errors.');
+  } finally {await browser.close()}
+})().catch(e=>{console.error(e);process.exit(1)});
