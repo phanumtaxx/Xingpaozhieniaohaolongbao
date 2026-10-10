@@ -7,9 +7,11 @@ import dev.xingclient.module.ModuleManager;
 import dev.xingclient.module.NativeExampleModule;
 import dev.xingclient.module.NativeAutoCrystalModule;
 import dev.xingclient.module.FakePlayerModule;
+import dev.xingclient.module.MaceKillModule;
 import dev.xingclient.manager.ClientManagers;
 import dev.xingclient.ui.NativeSmoke;
 import dev.xingclient.ui.WorldSmoke;
+import dev.xingclient.ui.MaceSmoke;
 import dev.xingclient.ui.XingScreen;
 import java.util.HashSet;
 import java.util.Set;
@@ -31,12 +33,14 @@ public final class XingClient implements ClientModInitializer {
     public MenuMusic music;
     public final EventBus events = new EventBus();
     public final ModuleManager modules = new ModuleManager();
+    public MaceKillModule maceKill;
     public final ClientManagers managers = new ClientManagers(events);
     public MenuData menuData;
     private boolean shiftHeld;
     private final Set<String> pressed = new HashSet<>();
     private NativeSmoke smoke;
     private WorldSmoke worldSmoke;
+    private MaceSmoke maceSmoke;
 
     @Override
     public void onInitializeClient() {
@@ -44,13 +48,16 @@ public final class XingClient implements ClientModInitializer {
         modules.register(new NativeExampleModule(events));
         modules.register(new FakePlayerModule(events));
         modules.register(new NativeAutoCrystalModule(events));
+        maceKill = new MaceKillModule(events);
+        modules.register(maceKill);
         menuData = new MenuData(modules);
 
         boolean worldCheck = FabricLoader.getInstance().isDevelopmentEnvironment()
             && Boolean.getBoolean("xingclient.worldSmoke");
         boolean guiCheck = FabricLoader.getInstance().isDevelopmentEnvironment()
             && Boolean.getBoolean("xingclient.smoke");
-        boolean smokeMode = guiCheck || worldCheck;
+        boolean maceCheck = FabricLoader.getInstance().isDevelopmentEnvironment() && Boolean.getBoolean("xingclient.maceSmoke");
+        boolean smokeMode = guiCheck || worldCheck || maceCheck;
         music = new MenuMusic(smokeMode);
         Runtime.getRuntime().addShutdownHook(new Thread(music::close, "xingclient-music-on-exit"));
         store = new SettingsStore(FabricLoader.getInstance().getConfigDir()
@@ -62,7 +69,8 @@ public final class XingClient implements ClientModInitializer {
         screen = new XingScreen(this);
         if (smokeMode) {
             settings = new ClientSettings().normalize(menuData);
-            if (worldCheck) worldSmoke = new WorldSmoke(this);
+            if (maceCheck) maceSmoke = new MaceSmoke(this);
+            else if (worldCheck) worldSmoke = new WorldSmoke(this);
             else smoke = new NativeSmoke(this);
         }
         Runtime.getRuntime().addShutdownHook(new Thread(store::flush, "xingclient-save-on-exit"));
@@ -71,6 +79,8 @@ public final class XingClient implements ClientModInitializer {
     private void restoreModules() {
         for (Module module : modules.all()) {
             ClientSettings.Entry entry = settings.modules.get(module.id());
+            // An experimental launch must always be started explicitly, never on login.
+            if (module instanceof MaceKillModule) { entry.enabled = false; continue; }
             if (!entry.enabled) {
                 continue;
             }
@@ -131,5 +141,6 @@ public final class XingClient implements ClientModInitializer {
 
         if (smoke != null) smoke.tick(mc);
         if (worldSmoke != null) worldSmoke.tick(mc);
+        if (maceSmoke != null) maceSmoke.tick(mc);
     }
 }

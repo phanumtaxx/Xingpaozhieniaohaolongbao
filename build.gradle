@@ -25,7 +25,8 @@ java { toolchain.languageVersion = JavaLanguageVersion.of(21); withSourcesJar() 
 tasks.withType(JavaCompile).configureEach { options.release = 21 }
 processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand version: project.version } }
 test { useJUnitPlatform() }
-def authenticatedLaunch = project.hasProperty('devAuth') && !project.hasProperty('guiSmoke') && !project.hasProperty('worldSmoke')
+def smokeRun = project.hasProperty('guiSmoke') || project.hasProperty('worldSmoke') || project.hasProperty('maceSmoke')
+def authenticatedLaunch = project.hasProperty('devAuth') && !smokeRun
 def devAuthDirectory = layout.projectDirectory.dir('run/devauth')
 tasks.register('prepareDevAuth') {
     onlyIf { authenticatedLaunch }
@@ -43,12 +44,12 @@ loom {
             client()
             vmArg "-Ddevauth.enabled=${authenticatedLaunch}"
             vmArg "-Ddevauth.configDir=${devAuthDirectory.asFile.absolutePath}"
-            if (project.hasProperty('guiSmoke') || project.hasProperty('worldSmoke')) {
-                vmArg project.hasProperty('worldSmoke') ? '-Dxingclient.worldSmoke=true' : '-Dxingclient.smoke=true'
+            if (smokeRun) {
+                vmArg project.hasProperty('maceSmoke') ? '-Dxingclient.maceSmoke=true' : project.hasProperty('worldSmoke') ? '-Dxingclient.worldSmoke=true' : '-Dxingclient.smoke=true'
                 programArgs '--width', '1440', '--height', '900'
             }
         }
     }
 }
 tasks.named('runClient') { dependsOn 'prepareDevAuth' }
-tasks.withType(JavaExec).configureEach { if (project.hasProperty('guiSmoke') || project.hasProperty('worldSmoke')) environment 'ALSOFT_DRIVERS', 'null' }
+tasks.withType(JavaExec).configureEach { if (smokeRun) environment 'ALSOFT_DRIVERS', 'null' }

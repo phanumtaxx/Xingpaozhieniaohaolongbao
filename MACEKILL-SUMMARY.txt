@@ -1,0 +1,52 @@
+MACEKILL - DEVELOPMENT SUMMARY
+Updated: October 9, 2026
+Status: Experimental; further changes paused at the user's request.
+
+PURPOSE AND FLOW
+Combat > MaceKill automates the reported Air Stuck / wind-charge mace technique.
+Start on a solid block with a mace and wind charges in the hotbar. Enable the
+module and close the GUI. It freezes local movement, throws charges downward
+(five by default), collects server-reported explosion impulses, releases the
+accumulated local velocity, tracks the fall, and freezes again near the ground.
+Manual attacks remain available. Optional Auto attack selects a visible nearby
+player, excluding friends, teammates and spectators. Each activation handles
+one attempt and stops after an attack; re-enable to repeat.
+
+IMPLEMENTATION
+Movement ticks are held and normal movement packets are sent periodically.
+Rendering, attacks, item use, keepalives and teleport acknowledgments continue.
+No thread suspension, queued packet flood or forged fall-distance value is used.
+Settings cover charge count, shot/packet intervals, hold height, minimum fall,
+hold timeout and automatic attack range. Action-bar status shows progress;
+stage transitions and stop reasons are logged under "xingclient-mace" in
+run/logs/latest.log. "Held (estimated)" does not confirm server-side damage.
+The module cancels on damage, airborne/held knockback, ground contact, invalid
+movement/world changes or timeout. It does not auto-start on login.
+
+COMPLETED AND TESTED
+- Added the module, GUI settings, movement/network/attack hooks and logging.
+- Eight new state/settings tests passed. Local Minecraft integration checks
+  passed charging, launch, descent, hold, manual attack release, automatic
+  attack, friend filtering and hotbar restoration.
+- Fixed an imported native DLL crash caused by incompatibility with the C++
+  runtime bundled with the installed JDK; rebuilt the DLL with Microsoft's
+  mutex compatibility option. Original: .qa/xing-before-mace.dll.
+- User reports that it works perfectly against a warden in singleplayer and
+  reproduces the desired Air Stuck feel. Exact equivalence to Grim Client's
+  private implementation has not been established.
+
+MULTIPLAYER FINDINGS / OPEN WORK
+The user repeatedly receives "Unexpected server correction" on a Grim HvH
+anarchy server. Other Grim/anticheat servers rubberband the player upward or
+apply setbacks. Singleplayer success has not established multiplayer support.
+That exact message currently means a position correction arrived before the
+HELD phase; the failing phase still needs to be identified from a session log.
+While HELD, only a nearby downward correction with a clear collision box and
+a remaining gap above the floor is accepted; other corrections end the attempt.
+
+Future investigation: correlate the failing phase, outgoing movement timing,
+incoming impulses and corrections; record server/client versions, anticheat
+configuration where available and latency; verify whether the server retains
+fall distance and applies mace damage after its correction. Recheck charge
+loss after external hits/wind charges. No reliable Grim bypass or guaranteed
+one-hit kill is confirmed. Leave the current implementation unchanged for now.

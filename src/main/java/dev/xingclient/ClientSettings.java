@@ -12,6 +12,7 @@ public final class ClientSettings {
     public boolean mascot = true, blossoms = true;
     public Map<String, Entry> modules = new LinkedHashMap<>();
     public AutoCrystalSettings autoCrystal = new AutoCrystalSettings();
+    public MaceKillSettings maceKill = new MaceKillSettings();
     public Map<String, Position> positions = new LinkedHashMap<>();
     public Map<String, SavedTarget> targets = new LinkedHashMap<>();
     public Set<String> friends = new LinkedHashSet<>();
@@ -50,6 +51,30 @@ public final class ClientSettings {
         public Position(double x, double y) { this.x = x; this.y = y; }
     }
 
+    public static final class MaceKillSettings {
+        public int charges = 5, chargeIntervalTicks = 12, heartbeatTicks = 10, holdSeconds = 15;
+        public double holdHeight = 1.2, minimumFall = 4, attackRange = 3;
+        public boolean autoAttack;
+        public void normalize() {
+            charges = Math.clamp(charges, 1, 8);
+            chargeIntervalTicks = Math.clamp(chargeIntervalTicks, 10, 30);
+            heartbeatTicks = Math.clamp(heartbeatTicks, 1, 20);
+            holdSeconds = Math.clamp(holdSeconds, 3, 30);
+            holdHeight = clampFinite(holdHeight, .2, 3, 1.2);
+            minimumFall = clampFinite(minimumFall, 1.6, 20, 4);
+            attackRange = clampFinite(attackRange, 1, 3, 3);
+        }
+        public MaceKillSettings copy() {
+            normalize();
+            var copy = new MaceKillSettings();
+            copy.charges = charges; copy.chargeIntervalTicks = chargeIntervalTicks;
+            copy.heartbeatTicks = heartbeatTicks; copy.holdSeconds = holdSeconds;
+            copy.holdHeight = holdHeight; copy.minimumFall = minimumFall;
+            copy.attackRange = attackRange; copy.autoAttack = autoAttack;
+            return copy;
+        }
+    }
+
     public ClientSettings normalize() {
         return normalize(null);
     }
@@ -60,6 +85,8 @@ public final class ClientSettings {
         opacity = Math.clamp(opacity, 40, 100);
         if (modules == null) modules = new LinkedHashMap<>();
         if (autoCrystal == null) autoCrystal = new AutoCrystalSettings();
+        if (maceKill == null) maceKill = new MaceKillSettings();
+        maceKill.normalize();
         autoCrystal.minimumDamage = clampFinite(autoCrystal.minimumDamage, 0.0, 20.0, 4.0);
         autoCrystal.lowHealthMinimumDamage = clampFinite(autoCrystal.lowHealthMinimumDamage, 0.0, 20.0, 1.0);
         autoCrystal.lowHealthThreshold = clampFinite(autoCrystal.lowHealthThreshold, 1.0, 20.0, 8.0);

@@ -2,6 +2,7 @@ package dev.xingclient.ui;
 
 import dev.xingclient.*;
 import dev.xingclient.module.NativeAutoCrystalModule;
+import dev.xingclient.module.MaceKillModule;
 import java.util.*;
 import java.util.function.DoubleConsumer;
 import net.minecraft.client.gui.DrawContext;
@@ -199,9 +200,23 @@ public final class XingScreen extends Screen {
         text(ctx,label,x+width-2-bw,y+41,10,color);
         hit(x+width-8-bw,y+30,bw,23,()->{binding=key;notify("Press a key or mouse button - Esc cancels - Delete clears");});
         if(module instanceof NativeAutoCrystalModule)renderAutoCrystalSettings(ctx,x,y+62,width,color);
+        if(module instanceof MaceKillModule)renderMaceSettings(ctx,x,y+62,width,color);
     }
     private static int detailsHeight(dev.xingclient.module.Module module){
-        return module instanceof NativeAutoCrystalModule?AUTO_CRYSTAL_SETTINGS_HEIGHT:MODULE_DETAILS_HEIGHT;
+        return module instanceof MaceKillModule?270:module instanceof NativeAutoCrystalModule?AUTO_CRYSTAL_SETTINGS_HEIGHT:MODULE_DETAILS_HEIGHT;
+    }
+    private void renderMaceSettings(DrawContext ctx,double x,double y,double width,int color){
+        var s=app.settings.maceKill;
+        text(ctx,"Experimental / one attempt",x+8,y+7,10,0xffaaa0b2);y+=22;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderValueSetting(ctx,"Charges",s.charges,1,8,1,x,y,lx,sx,sw,color,v->s.charges=(int)v);y+=22;
+        renderValueSetting(ctx,"Shot ticks",s.chargeIntervalTicks,10,30,1,x,y,lx,sx,sw,color,v->s.chargeIntervalTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Packet ticks",s.heartbeatTicks,1,20,1,x,y,lx,sx,sw,color,v->s.heartbeatTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Hold height",s.holdHeight,.2,3,.1,x,y,lx,sx,sw,color,v->s.holdHeight=v);y+=22;
+        renderValueSetting(ctx,"Min fall",s.minimumFall,1.6,20,.2,x,y,lx,sx,sw,color,v->s.minimumFall=v);y+=22;
+        renderValueSetting(ctx,"Hold seconds",s.holdSeconds,3,30,1,x,y,lx,sx,sw,color,v->s.holdSeconds=(int)v);y+=22;
+        renderValueSetting(ctx,"Attack range",s.attackRange,1,3,.1,x,y,lx,sx,sw,color,v->s.attackRange=v);y+=25;
+        checkbox(ctx,"Auto attack",x+8,y+5,width-16,s.autoAttack,color,()->{s.autoAttack=!s.autoAttack;app.changed();});
     }
     private void renderAutoCrystalSettings(DrawContext ctx,double x,double y,double width,int color){
         ClientSettings.AutoCrystalSettings settings=app.settings.autoCrystal;
