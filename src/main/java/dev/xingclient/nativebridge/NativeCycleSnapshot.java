@@ -47,10 +47,14 @@ public record NativeCycleSnapshot(
         Position simulatedAirBlock,
         double packetMineOpeningWeight,
         int placePredictionTicks,
-        int fullPredictionTicks) {
+        int fullPredictionTicks,
+        List<BreakTarget> breakTargets,
+        int breakPredictionTicks,
+        int replacementCrystalId) {
 
-    public static final int VERSION = 2;
-    private static final int HEADER_BYTES = 352;
+    public static final int VERSION = 5;
+    private static final int HEADER_BYTES = 368;
+    private static final int BREAK_TARGET_BYTES = 128;
 
     public ByteBuffer encode() {
         ByteBuffer buffer = XingNativeBridge.cycleInputBuffer(HEADER_BYTES
@@ -59,7 +63,8 @@ public record NativeCycleSnapshot(
                 + collisionBoxes.size() * 64
                 + reachableBases.size() * 12
                 + crystals.size() * 56
-                + phaseBlocks.size() * 64);
+                + phaseBlocks.size() * 64
+                + breakTargets.size() * BREAK_TARGET_BYTES);
 
         int flags = (clientReady ? 1 : 0)
                 | (hasCrystal ? 2 : 0)
@@ -94,6 +99,8 @@ public record NativeCycleSnapshot(
         buffer.putInt(antiPhaseRadius);
         putPosition(buffer, simulatedAirBlock == null ? new Position(0, 0, 0) : simulatedAirBlock);
         buffer.putDouble(packetMineOpeningWeight);
+        buffer.putInt(breakTargets.size()).putInt(0);
+        buffer.putInt(breakPredictionTicks).putInt(replacementCrystalId);
         if (buffer.position() != HEADER_BYTES) {
             throw new IllegalStateException("Native cycle header layout mismatch");
         }
@@ -118,9 +125,9 @@ public record NativeCycleSnapshot(
                     | (crystal.attackCoolingDown ? 4 : 0);
             buffer.putInt(crystalFlags);
             putPosition(buffer, crystal.blockPosition);
+            buffer.putInt(0);
             putVec(buffer, crystal.position);
             buffer.putDouble(crystal.playerDistanceSquared);
-            buffer.putInt(0);
         }
         for (PhaseBlock block : phaseBlocks) {
             putPosition(buffer, block.position);
@@ -128,6 +135,15 @@ public record NativeCycleSnapshot(
                     | (block.hasCollisionShape ? 4 : 0);
             buffer.putInt(phaseFlags);
             putBox(buffer, block.collisionBounds);
+        }
+        for (BreakTarget target : breakTargets) {
+            buffer.putInt(target.entityId).putInt(target.armor);
+            putVec(buffer, target.position);
+            putVec(buffer, target.previousPosition);
+            putBox(buffer, target.bounds);
+            buffer.putDouble(target.armorToughness);
+            buffer.putInt(target.resistanceAmplifier).putInt(0);
+            buffer.putDouble(target.minimumDamage);
         }
         return buffer.flip();
     }
@@ -142,6 +158,7 @@ public record NativeCycleSnapshot(
         int breakTargetId = output.getInt();
         boolean placeAfterBreak = output.getInt() != 0;
         int breakReason = output.getInt();
+        int placementReason = output.getInt();
         if (count < 0 || count > 64
                 || output.capacity() < XingNativeBridge.CYCLE_OUTPUT_HEADER_BYTES
                     + count * XingNativeBridge.CYCLE_OUTPUT_PLACEMENT_BYTES) {
@@ -161,7 +178,7 @@ public record NativeCycleSnapshot(
             placements.add(new NativeCyclePlan.Placement(new Position(x, y, z), score, targetDamage, selfDamage));
         }
         return new NativeCyclePlan(status, action, breakAction, breakCrystalId,
-                breakTargetId, breakReason, placeAfterBreak, placements);
+                breakTargetId, breakReason, placeAfterBreak, placementReason, placements);
     }
 
     private static void putVec(ByteBuffer buffer, Vec3 value) {
@@ -186,6 +203,9 @@ public record NativeCycleSnapshot(
     public record Crystal(int entityId, Position blockPosition, Vec3 position,
                           boolean alive, boolean aimValid, boolean attackCoolingDown,
                           double playerDistanceSquared) {}
+    public record BreakTarget(int entityId, int armor, Vec3 position, Vec3 previousPosition,
+                              Box bounds, double armorToughness, int resistanceAmplifier,
+                              double minimumDamage) {}
     public record PhaseBlock(Position position, boolean isAir, boolean replaceable,
                              boolean hasCollisionShape, Box collisionBounds) {}
 }

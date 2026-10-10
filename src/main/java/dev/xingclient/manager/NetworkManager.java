@@ -30,6 +30,7 @@ public final class NetworkManager {
     private final CombatActionScheduler scheduler;
     private final EventBus events;
     private ToLongFunction<ActionOwner> slotTransactions = ignored -> 0;
+    private int quietDepth;
 
     NetworkManager(NativeCombatBridge bridge, CombatActionScheduler scheduler, EventBus events) {
         this.bridge = bridge;
@@ -42,6 +43,15 @@ public final class NetworkManager {
         long transaction = slotTransactions.applyAsLong(owner);
         return sendWithSlotTransaction(owner, packet, transaction, slotPhase(packet, transaction));
     }
+
+    public boolean sendQuiet(ActionOwner owner, Packet<?> packet) {
+        CombatActionScheduler.requireClientThread();
+        ++quietDepth;
+        try { return send(owner, packet); }
+        finally { --quietDepth; }
+    }
+
+    public boolean isQuietSend() { return MinecraftClient.getInstance().isOnThread() && quietDepth > 0; }
 
     void slotTransactions(ToLongFunction<ActionOwner> resolver) { slotTransactions = Objects.requireNonNull(resolver); }
 

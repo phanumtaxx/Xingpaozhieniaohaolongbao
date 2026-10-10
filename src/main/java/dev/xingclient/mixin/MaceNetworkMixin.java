@@ -29,4 +29,10 @@ public abstract class MaceNetworkMixin {
         var app = XingClient.INSTANCE;
         if (app != null && app.maceKill != null) app.maceKill.corrected();
     }
+
+    @Inject(method = "onPlayerPositionLook", at = @At("HEAD"))
+    private void xing$captureCorrection(PlayerPositionLookS2CPacket packet, CallbackInfo ci) {
+        var app = XingClient.INSTANCE;
+        if (app != null && app.maceKill != null) app.maceKill.beforeCorrection();
+    }
 }

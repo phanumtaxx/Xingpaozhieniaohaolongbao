@@ -3,6 +3,10 @@ package dev.xingclient.ui;
 import dev.xingclient.*;
 import dev.xingclient.module.NativeAutoCrystalModule;
 import dev.xingclient.module.MaceKillModule;
+import dev.xingclient.module.NativeCrashoutModule;
+import dev.xingclient.module.NativeVelocityModule;
+import dev.xingclient.module.NativeAutoRefillModule;
+import dev.xingclient.module.NativeNoRenderModule;
 import java.util.*;
 import java.util.function.DoubleConsumer;
 import net.minecraft.client.gui.DrawContext;
@@ -14,7 +18,7 @@ import org.lwjgl.glfw.GLFW;
 public final class XingScreen extends Screen {
     private static final int TEXT=0xffc5c3c6, DARK=0xff292333;
     private static final int MODULE_DETAILS_HEIGHT=58;
-    private static final int AUTO_CRYSTAL_SETTINGS_HEIGHT=228;
+    private static final int AUTO_CRYSTAL_SETTINGS_HEIGHT=710;
     private final XingClient app;
     private final Blossoms blossoms=new Blossoms();
     private final MascotMotion mascot=new MascotMotion();
@@ -201,9 +205,91 @@ public final class XingScreen extends Screen {
         hit(x+width-8-bw,y+30,bw,23,()->{binding=key;notify("Press a key or mouse button - Esc cancels - Delete clears");});
         if(module instanceof NativeAutoCrystalModule)renderAutoCrystalSettings(ctx,x,y+62,width,color);
         if(module instanceof MaceKillModule)renderMaceSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeCrashoutModule)renderCrashoutSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeVelocityModule)renderVelocitySettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeAutoRefillModule)renderAutoRefillSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeNoRenderModule)renderNoRenderSettings(ctx,x,y+62,width,color);
     }
     private static int detailsHeight(dev.xingclient.module.Module module){
-        return module instanceof MaceKillModule?270:module instanceof NativeAutoCrystalModule?AUTO_CRYSTAL_SETTINGS_HEIGHT:MODULE_DETAILS_HEIGHT;
+        if(module instanceof NativeAutoRefillModule)return 270;
+        if(module instanceof NativeNoRenderModule)return 325;
+        return module instanceof NativeVelocityModule?640:module instanceof NativeCrashoutModule?250:module instanceof MaceKillModule?270:module instanceof NativeAutoCrystalModule?AUTO_CRYSTAL_SETTINGS_HEIGHT:MODULE_DETAILS_HEIGHT;
+    }
+    private void renderAutoRefillSettings(DrawContext ctx,double x,double y,double width,int color){
+        var s=app.settings.autoRefill;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderValueSetting(ctx,"Delay",s.delay,0,40,1,x,y,lx,sx,sw,color,v->s.delay=(int)v);y+=22;
+        renderValueSetting(ctx,"Threshold",s.threshold,1,63,1,x,y,lx,sx,sw,color,v->s.threshold=(int)v);y+=22;
+        checkbox(ctx,"Crystals",x+8,y+5,width-16,s.crystals,color,()->{s.crystals=!s.crystals;app.changed();});y+=25;
+        checkbox(ctx,"Obsidian",x+8,y+5,width-16,s.obsidian,color,()->{s.obsidian=!s.obsidian;app.changed();});y+=25;
+        checkbox(ctx,"Rockets",x+8,y+5,width-16,s.rockets,color,()->{s.rockets=!s.rockets;app.changed();});y+=25;
+        checkbox(ctx,"XP bottles",x+8,y+5,width-16,s.xp,color,()->{s.xp=!s.xp;app.changed();});y+=25;
+        checkbox(ctx,"Golden apples",x+8,y+5,width-16,s.gaps,color,()->{s.gaps=!s.gaps;app.changed();});y+=25;
+        checkbox(ctx,"Pearls",x+8,y+5,width-16,s.pearls,color,()->{s.pearls=!s.pearls;app.changed();});
+    }
+    private void renderNoRenderSettings(DrawContext ctx,double x,double y,double width,int color){
+        var s=app.settings.noRender;
+        checkbox(ctx,"Particles",x+8,y+5,width-16,s.particles,color,()->{s.particles=!s.particles;app.changed();});y+=25;
+        checkbox(ctx,"Weather",x+8,y+5,width-16,s.weather,color,()->{s.weather=!s.weather;app.changed();});y+=25;
+        checkbox(ctx,"Weather particles",x+8,y+5,width-16,s.weatherParticles,color,()->{s.weatherParticles=!s.weatherParticles;app.changed();});y+=25;
+        checkbox(ctx,"Clouds",x+8,y+5,width-16,s.clouds,color,()->{s.clouds=!s.clouds;app.changed();});y+=25;
+        checkbox(ctx,"Fire overlay",x+8,y+5,width-16,s.fireOverlay,color,()->{s.fireOverlay=!s.fireOverlay;app.changed();});y+=25;
+        checkbox(ctx,"Water overlay",x+8,y+5,width-16,s.waterOverlay,color,()->{s.waterOverlay=!s.waterOverlay;app.changed();});y+=25;
+        checkbox(ctx,"Block overlay",x+8,y+5,width-16,s.blockOverlay,color,()->{s.blockOverlay=!s.blockOverlay;app.changed();});y+=25;
+        checkbox(ctx,"Item activation",x+8,y+5,width-16,s.itemActivation,color,()->{s.itemActivation=!s.itemActivation;app.changed();});y+=25;
+        checkbox(ctx,"No armor (self)",x+8,y+5,width-16,s.armorSelf,color,()->{s.armorSelf=!s.armorSelf;app.changed();});y+=25;
+        checkbox(ctx,"No armor (others)",x+8,y+5,width-16,s.armorOthers,color,()->{s.armorOthers=!s.armorOthers;app.changed();});
+    }
+    private void renderVelocitySettings(DrawContext ctx,double x,double y,double width,int color){
+        var s=app.settings.velocity;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderChoiceSetting(ctx,"Mode",s.mode==ClientSettings.VelocitySettings.Mode.NCP?"NCP":"Grim V3",x,y,width,color,()->{
+            s.mode=s.mode==ClientSettings.VelocitySettings.Mode.NCP?ClientSettings.VelocitySettings.Mode.GRIM_V3:ClientSettings.VelocitySettings.Mode.NCP;app.changed();
+        });y+=25;
+        renderValueSetting(ctx,"Horizontal %",s.horizontal,0,100,1,x,y,lx,sx,sw,color,v->s.horizontal=v);y+=22;
+        renderValueSetting(ctx,"Vertical %",s.vertical,0,100,1,x,y,lx,sx,sw,color,v->s.vertical=v);y+=22;
+        renderValueSetting(ctx,"Lag pause ms",s.lagPauseMillis,0,1000,10,x,y,lx,sx,sw,color,v->s.lagPauseMillis=v);y+=22;
+        renderValueSetting(ctx,"Clipped grace",s.clippedGraceTicks,0,20,1,x,y,lx,sx,sw,color,v->s.clippedGraceTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Phase near",s.nearDistance,.02,.35,.01,x,y,lx,sx,sw,color,v->s.nearDistance=v);y+=22;
+        String motion=switch(s.motionMode){case ALWAYS->"Always";case ONLY_STILL->"Only still";case NEVER->"Never";};
+        renderChoiceSetting(ctx,"Motion mode",motion,x,y,width,color,()->{
+            var modes=ClientSettings.VelocitySettings.MotionMode.values();s.motionMode=modes[(s.motionMode.ordinal()+1)%modes.length];app.changed();
+        });y+=25;
+        checkbox(ctx,"Cancel all",x+8,y+5,width-16,s.cancelAll,color,()->{s.cancelAll=!s.cancelAll;app.changed();});y+=25;
+        checkbox(ctx,"Redirect knockback",x+8,y+5,width-16,s.redirect,color,()->{s.redirect=!s.redirect;app.changed();});y+=25;
+        checkbox(ctx,"Walls",x+8,y+5,width-16,s.walls,color,()->{s.walls=!s.walls;app.changed();});y+=25;
+        checkbox(ctx,"No rotation",x+8,y+5,width-16,s.noRotation,color,()->{s.noRotation=!s.noRotation;app.changed();});y+=25;
+        checkbox(ctx,"While liquid",x+8,y+5,width-16,s.whileLiquid,color,()->{s.whileLiquid=!s.whileLiquid;app.changed();});y+=25;
+        checkbox(ctx,"While Elytra",x+8,y+5,width-16,s.whileElytra,color,()->{s.whileElytra=!s.whileElytra;app.changed();});y+=25;
+        checkbox(ctx,"Explosion velocity",x+8,y+5,width-16,s.explosions,color,()->{s.explosions=!s.explosions;app.changed();});y+=25;
+        checkbox(ctx,"Phase lock knockback",x+8,y+5,width-16,s.phaseLock,color,()->{s.phaseLock=!s.phaseLock;app.changed();});y+=25;
+        checkbox(ctx,"Phase block push",x+8,y+5,width-16,s.blockPush,color,()->{s.blockPush=!s.blockPush;app.changed();});y+=25;
+        checkbox(ctx,"Intersecting only",x+8,y+5,width-16,s.onlyIntersecting,color,()->{s.onlyIntersecting=!s.onlyIntersecting;app.changed();});y+=25;
+        checkbox(ctx,"Push leniency",x+8,y+5,width-16,s.lenient,color,()->{s.lenient=!s.lenient;app.changed();});y+=25;
+        checkbox(ctx,"Require PhaseAssist",x+8,y+5,width-16,s.requireAssist,color,()->{s.requireAssist=!s.requireAssist;app.changed();});y+=25;
+        checkbox(ctx,"Require recent phase",x+8,y+5,width-16,s.requireRecent,color,()->{s.requireRecent=!s.requireRecent;app.changed();});y+=25;
+        checkbox(ctx,"Phase push debug",x+8,y+5,width-16,s.pushDebug,color,()->{s.pushDebug=!s.pushDebug;app.changed();});y+=25;
+        checkbox(ctx,"Debug",x+8,y+5,width-16,s.debug,color,()->{s.debug=!s.debug;app.changed();});
+    }
+    private void renderChoiceSetting(DrawContext ctx,String label,String value,double x,double y,double width,int color,Runnable cycle){
+        text(ctx,label+": "+value,x+8,y+8,11,color);
+        hit(x+8,y-3,width-16,22,cycle);
+    }
+    private void renderCrashoutSettings(DrawContext ctx,double x,double y,double width,int color){
+        var s=app.settings.crashout;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderValueSetting(ctx,"Turn speed",s.turnSpeed,1,180,1,x,y,lx,sx,sw,color,v->s.turnSpeed=v);y+=22;
+        renderValueSetting(ctx,"Rocket margin",s.safetyMargin,0,2,.05,x,y,lx,sx,sw,color,v->s.safetyMargin=v);y+=22;
+        renderValueSetting(ctx,"Packet gap",s.packetGap,1,100,1,x,y,lx,sx,sw,color,v->s.packetGap=(int)v);y+=22;
+        String mode=switch(s.flipFlop){case FULL->"Full";case WITH_FIREWORK->"With firework";case NONE->"None";};
+        text(ctx,"Flip-flop: "+mode,x+8,y+8,11,color);
+        hit(x+8,y-3,width-16,22,()->{
+            var modes=ClientSettings.CrashoutSettings.FlipFlop.values();
+            s.flipFlop=modes[(s.flipFlop.ordinal()+1)%modes.length];app.changed();
+        });y+=25;
+        checkbox(ctx,"Inventory fireworks",x+8,y+5,width-16,s.inventoryFireworks,color,()->{s.inventoryFireworks=!s.inventoryFireworks;app.changed();});y+=25;
+        checkbox(ctx,"Hide fly pose",x+8,y+5,width-16,s.hideFlyPose,color,()->{s.hideFlyPose=!s.hideFlyPose;app.changed();});y+=25;
+        checkbox(ctx,"Spoof chestplate",x+8,y+5,width-16,s.spoofChestplate,color,()->{s.spoofChestplate=!s.spoofChestplate;app.changed();});
     }
     private void renderMaceSettings(DrawContext ctx,double x,double y,double width,int color){
         var s=app.settings.maceKill;
@@ -211,30 +297,65 @@ public final class XingScreen extends Screen {
         double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
         renderValueSetting(ctx,"Charges",s.charges,1,8,1,x,y,lx,sx,sw,color,v->s.charges=(int)v);y+=22;
         renderValueSetting(ctx,"Shot ticks",s.chargeIntervalTicks,10,30,1,x,y,lx,sx,sw,color,v->s.chargeIntervalTicks=(int)v);y+=22;
-        renderValueSetting(ctx,"Packet ticks",s.heartbeatTicks,1,20,1,x,y,lx,sx,sw,color,v->s.heartbeatTicks=(int)v);y+=22;
-        renderValueSetting(ctx,"Hold height",s.holdHeight,.2,3,.1,x,y,lx,sx,sw,color,v->s.holdHeight=v);y+=22;
-        renderValueSetting(ctx,"Min fall",s.minimumFall,1.6,20,.2,x,y,lx,sx,sw,color,v->s.minimumFall=v);y+=22;
-        renderValueSetting(ctx,"Hold seconds",s.holdSeconds,3,30,1,x,y,lx,sx,sw,color,v->s.holdSeconds=(int)v);y+=22;
+        renderValueSetting(ctx,"Min height",s.minimumFall,1.6,20,.2,x,y,lx,sx,sw,color,v->s.minimumFall=v);y+=22;
+        renderValueSetting(ctx,"Pause ms",s.stallMillis,100,4000,100,x,y,lx,sx,sw,color,v->s.stallMillis=(int)v);y+=22;
         renderValueSetting(ctx,"Attack range",s.attackRange,1,3,.1,x,y,lx,sx,sw,color,v->s.attackRange=v);y+=25;
         checkbox(ctx,"Auto attack",x+8,y+5,width-16,s.autoAttack,color,()->{s.autoAttack=!s.autoAttack;app.changed();});
     }
     private void renderAutoCrystalSettings(DrawContext ctx,double x,double y,double width,int color){
         ClientSettings.AutoCrystalSettings settings=app.settings.autoCrystal;
         double labelX=x+8,sliderX=x+82,sliderWidth=Math.max(24,width-112);
-        renderValueSetting(ctx,"Min damage",settings.minimumDamage,0,20,1,x,y,labelX,sliderX,sliderWidth,color,
+        renderChoiceSetting(ctx,"Preset","Synthetic",x,y,width,color,()->{
+            settings.applySyntheticPreset();app.changed();notify("Applied Synthetic AutoCrystal preset");
+        });y+=25;
+        renderValueSetting(ctx,"Min damage",settings.minimumDamage,0,36,.5,x,y,labelX,sliderX,sliderWidth,color,
                 value->settings.minimumDamage=value);
         y+=22;
-        renderValueSetting(ctx,"Low HP damage",settings.lowHealthMinimumDamage,0,20,1,x,y,labelX,sliderX,sliderWidth,color,
+        renderValueSetting(ctx,"Low HP damage",settings.lowHealthMinimumDamage,0,12,.5,x,y,labelX,sliderX,sliderWidth,color,
                 value->settings.lowHealthMinimumDamage=value);
         y+=22;
-        renderValueSetting(ctx,"Low HP at",settings.lowHealthThreshold,1,20,1,x,y,labelX,sliderX,sliderWidth,color,
+        renderValueSetting(ctx,"Low HP at",settings.lowHealthThreshold,0,36,.5,x,y,labelX,sliderX,sliderWidth,color,
                 value->settings.lowHealthThreshold=value);
         y+=22;
         renderValueSetting(ctx,"Max self",settings.maximumSelfDamage,0,36,1,x,y,labelX,sliderX,sliderWidth,color,
                 value->settings.maximumSelfDamage=value);
         y+=22;
-        renderValueSetting(ctx,"Break range",settings.breakRange,1,7,0.25,x,y,labelX,sliderX,sliderWidth,color,
+        renderValueSetting(ctx,"Break range",settings.breakRange,1,12,.1,x,y,labelX,sliderX,sliderWidth,color,
                 value->settings.breakRange=value);
+        y+=22;
+        renderValueSetting(ctx,"Place range",settings.placeRange,1,6,.1,x,y,labelX,sliderX,sliderWidth,color,v->settings.placeRange=v);y+=22;
+        renderValueSetting(ctx,"Walls range",settings.wallsRange,0,6,.1,x,y,labelX,sliderX,sliderWidth,color,v->settings.wallsRange=v);y+=22;
+        renderValueSetting(ctx,"Scan radius",settings.scanRadius,2,16,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.scanRadius=(int)v);y+=22;
+        renderValueSetting(ctx,"Scan interval",settings.scanInterval,1,10,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.scanInterval=(int)v);y+=22;
+        renderValueSetting(ctx,"Target weight",settings.targetWeight,0,10,.1,x,y,labelX,sliderX,sliderWidth,color,v->settings.targetWeight=v);y+=22;
+        renderValueSetting(ctx,"Safety weight",settings.safetyWeight,0,10,.1,x,y,labelX,sliderX,sliderWidth,color,v->settings.safetyWeight=v);y+=22;
+        renderValueSetting(ctx,"Place predict",settings.placePredictionTicks,0,6,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.placePredictionTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Break predict",settings.breakPredictionTicks,0,6,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.breakPredictionTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Full predict",settings.fullPredictionTicks,0,8,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.fullPredictionTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Attack retry",settings.attackRetryTicks,0,4,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.attackRetryTicks=(int)v);y+=22;
+        renderValueSetting(ctx,"Spawn timeout",settings.predictionTimeout,1,20,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.predictionTimeout=(int)v);y+=22;
+        renderValueSetting(ctx,"Restore delay",settings.restoreSlotDelay,0,6,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.restoreSlotDelay=(int)v);y+=25;
+        renderValueSetting(ctx,"Silent restore",settings.silentRestoreDelay,0,6,1,x,y,labelX,sliderX,sliderWidth,color,v->settings.silentRestoreDelay=(int)v);y+=25;
+        renderChoiceSetting(ctx,"Swap mode",settings.swapMode.name(),x,y,width,color,()->{
+            var modes=dev.xingclient.manager.InventoryManager.SwapMode.values();
+            settings.swapMode=modes[(settings.swapMode.ordinal()+1)%modes.length];app.changed();
+        });y+=25;
+        renderChoiceSetting(ctx,"Hand mode",settings.handMode.name(),x,y,width,color,()->{
+            var modes=dev.xingclient.manager.InteractionManager.HandMode.values();
+            settings.handMode=modes[(settings.handMode.ordinal()+1)%modes.length];app.changed();
+        });y+=25;
+        checkbox(ctx,"FacePlace",x+8,y+7,width-16,settings.facePlace,color,()->{
+            settings.facePlace=!settings.facePlace;app.changed();
+        });y+=25;
+        checkbox(ctx,"Predict movement",x+8,y+7,width-16,settings.predictMovement,color,()->{
+            settings.predictMovement=!settings.predictMovement;app.changed();
+        });y+=25;
+        checkbox(ctx,"Strict direction",x+8,y+7,width-16,settings.strictDirection,color,()->{
+            settings.strictDirection=!settings.strictDirection;app.changed();
+        });y+=25;
+        checkbox(ctx,"Two air blocks",x+8,y+7,width-16,settings.strictPlacementSpace,color,()->{
+            settings.strictPlacementSpace=!settings.strictPlacementSpace;app.changed();
+        });
         y+=24;
         checkbox(ctx,"Break existing",x+8,y+7,width-16,settings.breakExisting,color,()->{
             settings.breakExisting=!settings.breakExisting;app.changed();

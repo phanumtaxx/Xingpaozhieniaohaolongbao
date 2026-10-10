@@ -189,6 +189,20 @@ std::vector<CrystalPlacement> CrystalPlacementScanner::scan(const CrystalPlaceme
     return placements;
 }
 
+std::vector<bool> CrystalPlacementScanner::validate(
+        const CrystalPlacementScanInput& input, const std::vector<CrystalPlacementCheck>& checks) {
+    std::vector<bool> valid;
+    valid.reserve(checks.size());
+    if (checks.empty()) return valid;
+    const BlockMap blocks = makeBlockMap(input);
+    CrystalPlacementScanInput validationInput = input;
+    for (const CrystalPlacementCheck& check : checks) {
+        validationInput.hasSimulatedAirBlock = input.hasSimulatedAirBlock && check.hasSimulatedAirBlock;
+        valid.push_back(canPlaceAtInSnapshot(validationInput, blocks, check.basePosition));
+    }
+    return valid;
+}
+
 bool CrystalPlacementScanner::closestBase(
         const CrystalPlacementScanInput& input,
         CrystalPlacement& result) {

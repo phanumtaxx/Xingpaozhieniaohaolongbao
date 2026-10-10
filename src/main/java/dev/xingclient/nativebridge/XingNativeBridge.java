@@ -18,6 +18,7 @@ public final class XingNativeBridge {
     public static final int AUTOCRYSTAL_EXECUTION_POLICY = 5;
     public static final int AUTOCRYSTAL_CYCLE = 6;
     public static final int WORLD_STATE = 9;
+    public static final int AUTO_REFILL = 10;
     public static final int CYCLE_EVENT_PLAN = 0;
     public static final int CYCLE_OUTPUT_HEADER_BYTES = 48;
     public static final int CYCLE_OUTPUT_PLACEMENT_BYTES = 48;
@@ -25,6 +26,8 @@ public final class XingNativeBridge {
     private static final ThreadLocal<ByteBuffer> CYCLE_OUTPUT_BUFFER = new ThreadLocal<>();
 
     private static boolean libraryLoaded;
+
+    public record PauseResult(int elapsedMillis, boolean cancelled) {}
 
     private XingNativeBridge() { }
 
@@ -68,13 +71,52 @@ public final class XingNativeBridge {
         return dispatch(AUTOCRYSTAL_CYCLE, CYCLE_EVENT_PLAN, input, output);
     }
 
+    public static int planBreak(ByteBuffer input, ByteBuffer output) {
+        return dispatch(AUTOCRYSTAL_CYCLE, 1, input, output);
+    }
+
+    public static int planPlacement(ByteBuffer input, ByteBuffer output) {
+        return dispatch(AUTOCRYSTAL_CYCLE, 2, input, output);
+    }
+
+    public static int crashout(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.FlightGameAccess game) {
+        requireDirect(input, "input");
+        requireDirect(output, "output");
+        loadLibrary();
+        return nativeCrashout(event, input, output, game);
+    }
+
+    public static int velocity(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.MovementWorldAccess world) {
+        requireDirect(input, "input");
+        requireDirect(output, "output");
+        loadLibrary();
+        return nativeVelocity(event, input, output, world);
+    }
+
+    public static void prepareGameThreadPause() {
+        loadLibrary();
+        if (nativePauseVersion() != 2)
+            throw new IllegalStateException("Native menu pause requires the updated DLL");
+    }
+
+    public static PauseResult pauseGameThread(long windowHandle, int durationMillis) {
+        if (!net.minecraft.client.MinecraftClient.getInstance().isOnThread())
+            throw new IllegalStateException("Game pause must run on the client thread");
+        if (durationMillis < 100 || durationMillis > 4000)
+            throw new IllegalArgumentException("Pause duration must be between 100 and 4000 ms");
+        loadLibrary();
+        long result = nativePauseGameThread(windowHandle, durationMillis);
+        if (result < 0) throw new IllegalStateException("Native menu pause requires a focused window with a title bar");
+        return new PauseResult((int) (result >>> 1), (result & 1) != 0);
+    }
+
     private static void requireDirect(ByteBuffer buffer, String name) {
         if (buffer == null || !buffer.isDirect()) {
             throw new IllegalArgumentException(name + " must be a direct ByteBuffer");
         }
     }
 
-    private static synchronized void loadLibrary() {
+    public static synchronized void loadLibrary() {
         if (libraryLoaded) return;
         String configuredPath = System.getProperty("xing.native.path");
         Path library = configuredPath == null || configuredPath.isBlank()
@@ -107,4 +149,8 @@ public final class XingNativeBridge {
     }
 
     private static native int nativeDispatch(int policy, int event, ByteBuffer input, ByteBuffer output);
+    private static native int nativeCrashout(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.FlightGameAccess game);
+    private static native int nativeVelocity(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.MovementWorldAccess world);
+    private static native long nativePauseGameThread(long windowHandle, int durationMillis);
+    private static native int nativePauseVersion();
 }

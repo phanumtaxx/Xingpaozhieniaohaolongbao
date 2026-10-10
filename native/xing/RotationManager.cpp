@@ -24,8 +24,18 @@ bool RotationManager::request(std::uint64_t owner, int priority, float yaw, floa
 
 void RotationManager::tick() { lease_.tick(); }
 void RotationManager::release(std::uint64_t owner) {
-    if (owner == 0 || lease_.ownedBy(owner)) reset();
+    if (owner == 0 || lease_.ownedBy(owner)) { lease_.clear(); yaw_ = 0.0f; pitch_ = 0.0f; }
 }
-void RotationManager::reset() { lease_.clear(); yaw_ = 0.0f; pitch_ = 0.0f; }
+void RotationManager::reset() {
+    release(0); serverRotationKnown_ = false; serverYaw_ = 0.0f; serverPitch_ = 0.0f;
+}
+void RotationManager::observe(float yaw, float pitch) {
+    if (!std::isfinite(yaw) || !std::isfinite(pitch)) return;
+    serverYaw_ = std::fmod(yaw, 360.0f);
+    if (serverYaw_ >= 180.0f) serverYaw_ -= 360.0f;
+    if (serverYaw_ < -180.0f) serverYaw_ += 360.0f;
+    serverPitch_ = (std::max)(-90.0f, (std::min)(90.0f, pitch));
+    serverRotationKnown_ = true;
+}
 
 } }

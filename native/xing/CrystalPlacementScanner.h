@@ -27,6 +27,11 @@ struct CrystalPlacement {
     double targetDistanceSquared = 0.0;
 };
 
+struct CrystalPlacementCheck {
+    BlockPosition basePosition{};
+    bool hasSimulatedAirBlock = false;
+};
+
 struct CrystalPlacementScanInput {
     bool hasWorld = false;
     Vector3 targetPosition{};
@@ -47,6 +52,8 @@ public:
     static std::vector<CrystalPlacement> scan(const CrystalPlacementScanInput& input);
     static bool closestBase(const CrystalPlacementScanInput& input, CrystalPlacement& result);
     static bool canPlaceAt(const CrystalPlacementScanInput& input, const BlockPosition& basePosition);
+    static std::vector<bool> validate(
+            const CrystalPlacementScanInput& input, const std::vector<CrystalPlacementCheck>& checks);
 };
 
 } }

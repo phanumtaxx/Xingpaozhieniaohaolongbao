@@ -4,6 +4,11 @@
 #include "ManagerBridge.h"
 #include "CombatSchedulerBridge.h"
 #include "WorldStateBridge.h"
+#include "GameThreadPause.h"
+#include "CrashoutBridge.h"
+#include "VelocityBridge.h"
+#include "AutoRefillModule.h"
+#include "NoRenderModule.h"
 #include <cstdint>
 #include <jni.h>
 
@@ -32,8 +37,16 @@ Java_dev_xingclient_nativebridge_XingNativeBridge_nativeDispatch(
     case 7: return xing::managers::dispatch(event, input, inputLen, output, outputLen);
     case 8: return xing::combatbridge::dispatch(event, input, inputLen, output, outputLen);
     case 9: return xing::worldstatebridge::dispatch(event, input, inputLen, output, outputLen);
+    case 10: return xing::refill::dispatch(event, input, inputLen, output, outputLen);
     default: return -1;
     }
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_dev_xingclient_module_NativeNoRenderModule_nativeHides(
+        JNIEnv*, jclass, jboolean enabled, jint settings, jint effect) {
+    return xing::norender::hides(enabled == JNI_TRUE, static_cast<unsigned>(settings), effect)
+        ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT jint JNICALL
@@ -60,6 +73,31 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
     return JNI_VERSION_1_8;
 }
 
+extern "C" JNIEXPORT jint JNICALL
+Java_dev_xingclient_nativebridge_XingNativeBridge_nativeCrashout(
+        JNIEnv* env, jclass, jint event, jobject input, jobject output, jobject game) {
+    return xing::flight::dispatchCrashout(env, event, input, output, game);
+}
+
+extern "C" JNIEXPORT jlong JNICALL
+Java_dev_xingclient_nativebridge_XingNativeBridge_nativePauseGameThread(
+        JNIEnv*, jclass, jlong windowHandle, jint durationMillis) {
+    const auto result = xing::pauseGameThread(static_cast<std::uintptr_t>(windowHandle), durationMillis);
+    if (!result.valid) return -1;
+    return (static_cast<jlong>(result.elapsedMillis) << 1) | (result.cancelled ? 1 : 0);
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_dev_xingclient_nativebridge_XingNativeBridge_nativePauseVersion(JNIEnv*, jclass) {
+    return 2;
+}
+
 BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID) {
     return TRUE;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_dev_xingclient_nativebridge_XingNativeBridge_nativeVelocity(
+        JNIEnv* env, jclass, jint event, jobject input, jobject output, jobject world) {
+    return xing::velocity::dispatchVelocity(env, event, input, output, world);
 }

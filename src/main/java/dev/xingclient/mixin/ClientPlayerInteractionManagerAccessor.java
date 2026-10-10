@@ -7,6 +7,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(ClientPlayerInteractionManager.class)
 public interface ClientPlayerInteractionManagerAccessor {
+    @Accessor("lastSelectedSlot")
+    void xing$setLastSelectedSlot(int slot);
+
     @Accessor("currentBreakingPos")
     BlockPos xing$getCurrentBreakingPos();
 

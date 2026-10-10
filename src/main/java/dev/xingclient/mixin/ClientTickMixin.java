@@ -22,6 +22,9 @@ public abstract class ClientTickMixin {
         if (XingClient.INSTANCE != null) {
             XingClient.INSTANCE.postTickEvent(ClientTickEvent.Phase.END);
             XingClient.INSTANCE.tick((MinecraftClient) (Object) this);
+            if (XingClient.INSTANCE.maceKill != null) {
+                XingClient.INSTANCE.maceKill.pauseAtTickEnd();
+            }
         }
     }
 }

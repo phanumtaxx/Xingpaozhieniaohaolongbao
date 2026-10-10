@@ -10,6 +10,7 @@ import java.util.function.Predicate;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
+import net.minecraft.screen.slot.SlotActionType;
 
 /** Executes slot commands issued by the native manager. Author: uint32. */
 public final class InventoryManager {
@@ -51,6 +52,35 @@ public final class InventoryManager {
     }
 
     public SlotState state() { return bridge.call(NativeManagerBridge.SLOT_INSPECT, null, -1).slot(); }
+    public boolean refill(ActionOwner owner, int source, int target) {
+        CombatActionScheduler.requireClientThread();
+        if (source < 9 || source >= 36 || target < 36 || target >= 45) return false;
+        return scheduler.execute(owner, 30, 1, null, () -> {
+            var client = MinecraftClient.getInstance();
+            var player = client.player;
+            if (player == null || client.interactionManager == null || client.currentScreen != null
+                    || player.currentScreenHandler != player.playerScreenHandler
+                    || !player.currentScreenHandler.getCursorStack().isEmpty() || executing) return false;
+            var menu = player.currentScreenHandler;
+            var from = menu.getSlot(source).getStack();
+            var to = menu.getSlot(target).getStack();
+            if (from.isEmpty() || to.isEmpty() || !ItemStack.areItemsAndComponentsEqual(from, to)
+                    || to.getCount() >= to.getMaxCount()) return false;
+            executing = true;
+            try {
+                client.interactionManager.clickSlot(menu.syncId, source, 0,
+                        SlotActionType.PICKUP, player);
+                try {
+                    client.interactionManager.clickSlot(menu.syncId, target, 0,
+                            SlotActionType.PICKUP, player);
+                } finally {
+                    if (!menu.getCursorStack().isEmpty()) client.interactionManager.clickSlot(menu.syncId, source, 0,
+                            SlotActionType.PICKUP, player);
+                }
+                return true;
+            } finally { executing = false; }
+        }, ActionResource.INVENTORY).success();
+    }
     public boolean isOwnedBy(ActionOwner owner) { return state().ownerId() == Objects.requireNonNull(owner).id(); }
     public boolean hasSilentSwap(ActionOwner owner) { return state().silentOwnerId() == Objects.requireNonNull(owner).id(); }
     public long actionCommitId(ActionOwner owner) {
@@ -207,7 +237,11 @@ public final class InventoryManager {
             fail(owner, transaction);
             throw error;
         }
-        if (clientSelection) player.getInventory().setSelectedSlot(slot);
+        if (clientSelection) {
+            player.getInventory().setSelectedSlot(slot);
+            var interaction = MinecraftClient.getInstance().interactionManager;
+            if (interaction != null) ((dev.xingclient.mixin.ClientPlayerInteractionManagerAccessor) interaction).xing$setLastSelectedSlot(slot);
+        }
         return true;
     }
 
