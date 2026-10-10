@@ -2,6 +2,6 @@
   "required": true,
   "package": "dev.xingclient.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["ClientTickMixin", "TitleScreenMixin", "MenuMusicMixin", "ClickGuiBlurMixin", "HazelCommandMixin", "SpectateCameraMixin"],
+  "client": ["ClientTickMixin", "ClientPlayerInteractionManagerAccessor", "ClientWorldAccessor", "OutgoingRotationMixin", "PacketCommitMixin", "ServerCorrectionMixin", "ServerInventoryMixin", "FakePlayerAttackMixin", "CrystalSpawnMixin", "WorldBlockUpdateMixin", "TitleScreenMixin", "MenuMusicMixin", "ClickGuiBlurMixin", "HazelCommandMixin", "SpectateCameraMixin"],
   "injectors": { "defaultRequire": 1 }
 }

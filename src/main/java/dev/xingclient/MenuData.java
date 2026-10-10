@@ -1,19 +1,31 @@
 package dev.xingclient;
 
-import com.google.gson.Gson;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import dev.xingclient.module.Module;
+import dev.xingclient.module.ModuleCategory;
+import dev.xingclient.module.ModuleManager;
+import java.util.ArrayList;
 import java.util.List;
 
+/** Immutable GUI view of the modules currently registered with the client. */
 public final class MenuData {
-    public record Category(String name, List<String> modules, List<String> on) {}
-    public static final List<Category> CATEGORIES;
-    static {
-        try (var stream = MenuData.class.getResourceAsStream("/assets/xingclient/modules.json")) {
-            if (stream == null) throw new IllegalStateException("Missing module catalog");
-            CATEGORIES = List.of(new Gson().fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), Category[].class));
-        } catch (Exception e) { throw new ExceptionInInitializerError(e); }
+    public record Category(String name, List<Module> modules) {}
+
+    private final List<Category> categories;
+
+    public MenuData(ModuleManager manager) {
+        List<Category> registeredCategories = new ArrayList<>();
+        for (ModuleCategory category : ModuleCategory.values()) {
+            List<Module> modules = manager.all().stream()
+                .filter(module -> module.category() == category)
+                .toList();
+            if (!modules.isEmpty()) {
+                registeredCategories.add(new Category(category.displayName(), modules));
+            }
+        }
+        categories = List.copyOf(registeredCategories);
     }
-    public static String key(Category category, String name) { return category.name() + "." + name; }
-    private MenuData() {}
+
+    public List<Category> categories() {
+        return categories;
+    }
 }

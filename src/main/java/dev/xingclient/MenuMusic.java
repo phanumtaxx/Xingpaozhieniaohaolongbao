@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 /** One streaming player survives screen changes. PCM is played at unity gain, outside the game mixer. */
 public final class MenuMusic implements AutoCloseable {
+    private static final boolean MUSIC_ENABLED = false;
     private final Object gate=new Object();
     private final boolean silentCheck;
     private volatile boolean active,closed;
@@ -20,13 +21,17 @@ public final class MenuMusic implements AutoCloseable {
 
     public MenuMusic(boolean silentCheck){
         this.silentCheck=silentCheck;
-        worker=new Thread(this::run,"xingclient-menu-music");worker.setDaemon(true);worker.start();
+        if (MUSIC_ENABLED) {
+            worker=new Thread(this::run,"xingclient-menu-music");worker.setDaemon(true);worker.start();
+        } else {
+            worker=null;
+        }
     }
     public boolean isActive(){return active;}
     public long decodedFrames(){return frames;}
     public Throwable failure(){return failure;}
     public void setActive(boolean value){
-        if(active==value||closed)return;
+        if(!MUSIC_ENABLED||active==value||closed)return;
         synchronized(gate){
             active=value;
             var line=output;if(line!=null){if(value)line.start();else line.stop();}
@@ -52,7 +57,7 @@ public final class MenuMusic implements AutoCloseable {
     @Override public void close(){
         synchronized(gate){closed=true;active=false;gate.notifyAll();}
         var line=output;if(line!=null){line.stop();line.flush();line.close();}
-        worker.interrupt();
+        if(worker!=null)worker.interrupt();
     }
     private final class FixedAudio implements AudioDevice {
         private Decoder decoder;
