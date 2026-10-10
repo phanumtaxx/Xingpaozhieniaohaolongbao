@@ -4,9 +4,7 @@ import dev.xingclient.nativebridge.NativeCycleSnapshot;
 import dev.xingclient.XingClient;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.HashSet;
 import java.util.Set;
 import net.minecraft.block.Blocks;
@@ -26,10 +24,9 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.util.math.Vec3d;
 
 final class NativeCycleSnapshotFactory {
-    private static final int PLACEMENT_RADIUS = 8;
+    enum Stage { BREAK, PLACEMENT }
     private static final int COLLISION_RADIUS = 8;
-    private static final double PLACE_RANGE_SQUARED = 20.25;
-    private static final double WALL_RANGE_SQUARED = 9.0;
+    private static final int MAX_BREAK_TARGETS = 4;
     private static final double[][] FACE_SAMPLES = {
             {0.5, 0.5}, {0.1, 0.1}, {0.1, 0.9}, {0.9, 0.1}, {0.9, 0.9}
     };
@@ -37,32 +34,19 @@ final class NativeCycleSnapshotFactory {
     private NativeCycleSnapshotFactory() {}
 
     static NativeCycleSnapshot capture(
-            MinecraftClient client,
-            ClientPlayerEntity player,
-            boolean hasPendingPlacement,
-            int pendingBreakEntityId) {
-        return capture(client, player, hasPendingPlacement, pendingBreakEntityId, -1);
-    }
-
-    static NativeCycleSnapshot capture(
-            MinecraftClient client,
-            ClientPlayerEntity player,
-            boolean hasPendingPlacement,
-            int pendingBreakEntityId,
-            int onlyCrystalEntityId) {
-        return capture(client, player, hasPendingPlacement, pendingBreakEntityId, onlyCrystalEntityId, -1);
-    }
-
-    static NativeCycleSnapshot capture(
             MinecraftClient client, ClientPlayerEntity player, boolean hasPendingPlacement,
-            int pendingBreakEntityId, int onlyCrystalEntityId, int ignoredPlacementEntityId) {
+            int onlyCrystalEntityId, int preferredTargetId, Stage stage) {
         var world = client.world;
-        PlayerEntity target = world.getPlayers().stream()
+        var settings = XingClient.INSTANCE.settings.autoCrystal;
+        int replacementCrystalId = stage == Stage.PLACEMENT
+                ? XingClient.INSTANCE.managers.crystalActions.replacementCrystalId(settings.sameTickBreakPlace) : -1;
+        var targets = world.getPlayers().stream()
                 .filter(candidate -> candidate != player && candidate.isAlive() && !candidate.isSpectator())
                 .filter(candidate -> XingClient.INSTANCE == null || XingClient.INSTANCE.friends == null
                         || !XingClient.INSTANCE.friends.isFriend(candidate.getName().getString()))
-                .min(Comparator.comparingDouble(player::squaredDistanceTo))
-                .orElse(null);
+                .sorted(Comparator.comparingDouble(player::squaredDistanceTo)).toList();
+        PlayerEntity target = targets.stream().filter(candidate -> candidate.getId() == preferredTargetId)
+                .findFirst().orElse(targets.isEmpty() ? null : targets.getFirst());
         if (target == null) return null;
 
         Vec3d localPosition = player.getPos();
@@ -70,81 +54,108 @@ final class NativeCycleSnapshotFactory {
         BlockPos targetBlock = target.getBlockPos();
         List<NativeCycleSnapshot.Block> blocks = new ArrayList<>();
         List<NativeCycleSnapshot.Collision> collisionBoxes = new ArrayList<>();
-        List<NativeCycleSnapshot.PhaseBlock> phaseBlocks = phaseBlocks(world, target.getBoundingBox());
+        List<NativeCycleSnapshot.PhaseBlock> phaseBlocks = stage == Stage.BREAK ? List.of()
+                : phaseBlocks(world, target.getBoundingBox());
         List<NativeCycleSnapshot.Position> reachable = new ArrayList<>();
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
-
-        for (int y = targetBlock.getY() - PLACEMENT_RADIUS; y <= targetBlock.getY() + PLACEMENT_RADIUS; y++) {
-            for (int z = targetBlock.getZ() - PLACEMENT_RADIUS; z <= targetBlock.getZ() + PLACEMENT_RADIUS; z++) {
-                for (int x = targetBlock.getX() - PLACEMENT_RADIUS; x <= targetBlock.getX() + PLACEMENT_RADIUS; x++) {
-                    mutable.set(x, y, z);
-                    var state = world.getBlockState(mutable);
-                    int kind = state.isAir() ? 1 : state.isOf(Blocks.OBSIDIAN) ? 2
-                            : state.isOf(Blocks.BEDROCK) ? 3 : 0;
-                    blocks.add(new NativeCycleSnapshot.Block(new NativeCycleSnapshot.Position(x, y, z), kind));
-                    if (kind == 2 || kind == 3) {
-                        if (isWithinPlacementRange(player, mutable)) {
-                            reachable.add(new NativeCycleSnapshot.Position(x, y, z));
-                        }
-                    }
-                }
-            }
+        if (stage == Stage.PLACEMENT) {
+            appendPlacementBlocks(client, player, targetBlock, settings.scanRadius,
+                    replacementCrystalId, blocks, reachable);
         }
 
-        Set<BlockPos> sampledCollisionBlocks = new HashSet<>();
-        appendCollisionBoxes(world, targetBlock, collisionBoxes, sampledCollisionBlocks);
-        appendCollisionBoxes(world, player.getBlockPos(), collisionBoxes, sampledCollisionBlocks);
-
-        Box entitySearch = new Box(targetBlock).expand(PLACEMENT_RADIUS + 2.0);
+        Box entitySearch = new Box(targetBlock).expand(settings.scanRadius + 2.0);
         List<NativeCycleSnapshot.Entity> entities = new ArrayList<>();
-        entities.add(new NativeCycleSnapshot.Entity(player.getId(), toNative(player.getBoundingBox())));
+        if (stage == Stage.PLACEMENT) {
+            entities.add(new NativeCycleSnapshot.Entity(player.getId(), toNative(player.getBoundingBox())));
+        }
         List<NativeCycleSnapshot.Crystal> crystals = new ArrayList<>();
         dev.xingclient.MiningSyncState.Opening mineOpening = XingClient.INSTANCE == null
                 ? null : XingClient.INSTANCE.miningSync.eligibleOpening();
-        Map<Integer, Entity> nearbyEntities = new LinkedHashMap<>();
-        for (Entity entity : world.getOtherEntities(player, entitySearch)) {
-            nearbyEntities.put(entity.getId(), entity);
-        }
-        Box crystalSearch = new Box(player.getBlockPos()).expand(7.0);
-        for (Entity entity : world.getOtherEntities(player, crystalSearch)) {
-            nearbyEntities.put(entity.getId(), entity);
-        }
-        for (Entity entity : nearbyEntities.values()) {
-            if (entity.getId() != ignoredPlacementEntityId) {
+        Box search = stage == Stage.BREAK
+                ? player.getBoundingBox().expand(settings.breakRange) : entitySearch;
+        for (Entity entity : world.getOtherEntities(player, search)) {
+            if (stage == Stage.PLACEMENT) {
                 entities.add(new NativeCycleSnapshot.Entity(entity.getId(), toNative(entity.getBoundingBox())));
             }
-            if (entity instanceof EndCrystalEntity crystal && player.squaredDistanceTo(crystal) <= 49.0
+            if (stage == Stage.BREAK && settings.breakExisting
+                    && entity instanceof EndCrystalEntity crystal
+                    && player.squaredDistanceTo(crystal) <= settings.breakRange * settings.breakRange
                     && (onlyCrystalEntityId < 0 || crystal.getId() == onlyCrystalEntityId)) {
                 crystals.add(new NativeCycleSnapshot.Crystal(
                         crystal.getId(), toPosition(crystal.getBlockPos()), toNative(crystal.getPos()),
-                        crystal.isAlive(), true, crystal.getId() == pendingBreakEntityId,
+                        crystal.isAlive(), true, XingClient.INSTANCE.managers.crystalActions.attackCoolingDown(crystal.getId()),
                         player.squaredDistanceTo(crystal)));
             }
         }
 
-        var settings = XingClient.INSTANCE == null || XingClient.INSTANCE.settings == null
-                ? new dev.xingclient.ClientSettings.AutoCrystalSettings()
-                : XingClient.INSTANCE.settings.autoCrystal;
-        double minimumDamage = target.getHealth() <= settings.lowHealthThreshold
+        List<? extends PlayerEntity> breakPlayers = stage == Stage.PLACEMENT ? List.of()
+                : onlyCrystalEntityId >= 0 ? List.of(target) : targets.stream().limit(MAX_BREAK_TARGETS).toList();
+        List<NativeCycleSnapshot.BreakTarget> breakTargets = new ArrayList<>(breakPlayers.size());
+        Set<BlockPos> sampledCollisionBlocks = new HashSet<>();
+        if (stage == Stage.PLACEMENT || !crystals.isEmpty()) {
+            appendCollisionBoxes(world, targetBlock, collisionBoxes, sampledCollisionBlocks);
+            appendCollisionBoxes(world, player.getBlockPos(), collisionBoxes, sampledCollisionBlocks);
+            for (PlayerEntity breakPlayer : breakPlayers) {
+                appendCollisionBoxes(world, breakPlayer.getBlockPos(), collisionBoxes, sampledCollisionBlocks);
+            }
+        }
+        for (PlayerEntity breakPlayer : breakPlayers) {
+            double requiredDamage = settings.facePlace && breakPlayer.getHealth() <= settings.lowHealthThreshold
+                    ? settings.lowHealthMinimumDamage : settings.minimumDamage;
+            breakTargets.add(new NativeCycleSnapshot.BreakTarget(
+                    breakPlayer.getId(), breakPlayer.getArmor(), toNative(breakPlayer.getPos()),
+                    new NativeCycleSnapshot.Vec3(breakPlayer.lastX, breakPlayer.lastY, breakPlayer.lastZ),
+                    toNative(breakPlayer.getBoundingBox()),
+                    breakPlayer.getAttributeValue(EntityAttributes.ARMOR_TOUGHNESS),
+                    resistanceAmplifier(breakPlayer), requiredDamage));
+        }
+        double minimumDamage = settings.facePlace && target.getHealth() <= settings.lowHealthThreshold
                 ? settings.lowHealthMinimumDamage : settings.minimumDamage;
 
         return new NativeCycleSnapshot(
-                player.getId(), target.getId(), PLACEMENT_RADIUS, 1,
+                player.getId(), target.getId(), settings.scanRadius, settings.scanInterval,
                 Integer.toUnsignedLong(world.getRegistryKey().hashCode()),
                 toNative(localPosition), toNative(targetPosition),
-                toNative(target.getPos().subtract(target.getVelocity())),
+                new NativeCycleSnapshot.Vec3(target.lastX, target.lastY, target.lastZ),
                 toNative(target.getBoundingBox()), toNative(player.getBoundingBox()),
                 player.getHealth() + player.getAbsorptionAmount(), target.getArmor(), player.getArmor(),
                 target.getAttributeValue(EntityAttributes.ARMOR_TOUGHNESS),
                 player.getAttributeValue(EntityAttributes.ARMOR_TOUGHNESS),
                 resistanceAmplifier(target), resistanceAmplifier(player),
-                minimumDamage, settings.maximumSelfDamage, 2.0, 0.8,
+                minimumDamage, settings.maximumSelfDamage, settings.targetWeight, settings.safetyWeight,
                 true, NativeAutoCrystalModule.hasCrystal(player), crystalHand(player) != null, true,
-                hasPendingPlacement, false, settings.breakExisting, settings.sameTickBreakPlace, settings.breakRange,
+                hasPendingPlacement, settings.strictPlacementSpace, stage == Stage.BREAK && settings.breakExisting,
+                settings.sameTickBreakPlace, settings.breakRange,
                 blocks, entities, collisionBoxes, reachable, crystals,
                 true, 0.12, 2, phaseBlocks,
                 mineOpening == null ? null : toPosition(mineOpening.position()),
-                mineOpening == null ? 0.0 : mineOpening.scoreWeight(), 1, 2);
+                mineOpening == null ? 0.0 : mineOpening.scoreWeight(),
+                settings.predictMovement ? settings.placePredictionTicks : 0,
+                settings.predictMovement ? settings.fullPredictionTicks : 0, breakTargets,
+                settings.predictMovement ? settings.breakPredictionTicks : 0, replacementCrystalId);
+    }
+
+    private static void appendPlacementBlocks(MinecraftClient client,
+            ClientPlayerEntity player, BlockPos center, int radius, int replacementCrystalId,
+            List<NativeCycleSnapshot.Block> blocks,
+            List<NativeCycleSnapshot.Position> reachable) {
+        var world = client.world;
+        BlockPos.Mutable position = new BlockPos.Mutable();
+        for (int y = center.getY() - radius; y <= center.getY() + radius; y++) {
+            for (int z = center.getZ() - radius; z <= center.getZ() + radius; z++) {
+                for (int x = center.getX() - radius; x <= center.getX() + radius; x++) {
+                    position.set(x, y, z);
+                    var state = world.getBlockState(position);
+                    int kind = state.isAir() ? 1 : state.isOf(Blocks.OBSIDIAN) ? 2 : state.isOf(Blocks.BEDROCK) ? 3 : 0;
+                    var nativePosition = new NativeCycleSnapshot.Position(x, y, z);
+                    blocks.add(new NativeCycleSnapshot.Block(nativePosition, kind));
+                    if ((kind == 2 || kind == 3) && isWithinPlacementRange(player, position)
+                            && canPlaceNow(client, player, position, replacementCrystalId)
+                            && placementHitResult(world, player, position) != null) {
+                        reachable.add(nativePosition);
+                    }
+                }
+            }
+        }
     }
 
     private static List<NativeCycleSnapshot.PhaseBlock> phaseBlocks(
@@ -177,25 +188,19 @@ final class NativeCycleSnapshotFactory {
     }
 
     static boolean canPlaceNow(MinecraftClient client, ClientPlayerEntity player, BlockPos base,
-            int ignoredEntityId) {
+            int replacementCrystalId) {
         var world = client.world;
         if (world == null) return false;
         var baseState = world.getBlockState(base);
         if (!baseState.isOf(Blocks.OBSIDIAN) && !baseState.isOf(Blocks.BEDROCK)) return false;
         if (!world.getBlockState(base.up()).isAir()) return false;
+        if (XingClient.INSTANCE.settings.autoCrystal.strictPlacementSpace
+                && !world.getBlockState(base.up(2)).isAir()) return false;
         Box crystalSpace = new Box(base.getX(), base.getY() + 1, base.getZ(),
                 base.getX() + 1, base.getY() + 3, base.getZ() + 1);
         return !player.getBoundingBox().intersects(crystalSpace)
                 && world.getOtherEntities(player, crystalSpace,
-                        entity -> entity.getId() != ignoredEntityId).isEmpty();
-    }
-
-    static boolean hasCrystalAt(MinecraftClient client, ClientPlayerEntity player, BlockPos base) {
-        if (client.world == null) return false;
-        Box search = new Box(base.getX(), base.getY() + 1, base.getZ(),
-                base.getX() + 1, base.getY() + 3, base.getZ() + 1);
-        return client.world.getOtherEntities(player, search).stream()
-                .anyMatch(entity -> entity instanceof EndCrystalEntity);
+                        entity -> !(entity instanceof EndCrystalEntity) || entity.getId() != replacementCrystalId).isEmpty();
     }
 
     static net.minecraft.util.hit.BlockHitResult placementHitResult(
@@ -203,16 +208,20 @@ final class NativeCycleSnapshotFactory {
             ClientPlayerEntity player,
             BlockPos base) {
         Vec3d eyes = player.getEyePos();
+        var settings = XingClient.INSTANCE.settings.autoCrystal;
+        double placeRangeSquared = settings.placeRange * settings.placeRange;
+        double wallRange = Math.min(settings.placeRange, settings.wallsRange);
+        double wallRangeSquared = wallRange * wallRange;
         net.minecraft.util.hit.BlockHitResult bestVisible = null;
         net.minecraft.util.hit.BlockHitResult bestThroughWall = null;
         double bestVisibleDistance = Double.MAX_VALUE;
         double bestWallDistance = Double.MAX_VALUE;
         for (Direction face : Direction.values()) {
-            if (!isStrictFace(base, eyes, face)) continue;
+            if (settings.strictDirection && !isStrictFace(base, eyes, face)) continue;
             for (double[] sample : FACE_SAMPLES) {
                 Vec3d hitPosition = facePoint(base, face, sample[0], sample[1]);
                 double distanceSquared = eyes.squaredDistanceTo(hitPosition);
-                if (distanceSquared > PLACE_RANGE_SQUARED) continue;
+                if (distanceSquared > placeRangeSquared) continue;
                 var candidate = new net.minecraft.util.hit.BlockHitResult(hitPosition, face, base, false);
                 Vec3d inward = new Vec3d(-face.getOffsetX(), -face.getOffsetY(), -face.getOffsetZ()).multiply(1.0E-4);
                 var trace = world.raycast(new RaycastContext(eyes, hitPosition.add(inward),
@@ -223,7 +232,7 @@ final class NativeCycleSnapshotFactory {
                         bestVisible = candidate;
                         bestVisibleDistance = distanceSquared;
                     }
-                } else if (distanceSquared <= WALL_RANGE_SQUARED && distanceSquared < bestWallDistance) {
+                } else if (distanceSquared <= wallRangeSquared && distanceSquared < bestWallDistance) {
                     bestThroughWall = candidate;
                     bestWallDistance = distanceSquared;
                 }
@@ -237,7 +246,8 @@ final class NativeCycleSnapshotFactory {
         double dx = Math.max(Math.max(base.getX() - eyes.x, 0.0), eyes.x - base.getX() - 1.0);
         double dy = Math.max(Math.max(base.getY() - eyes.y, 0.0), eyes.y - base.getY() - 1.0);
         double dz = Math.max(Math.max(base.getZ() - eyes.z, 0.0), eyes.z - base.getZ() - 1.0);
-        return dx * dx + dy * dy + dz * dz <= PLACE_RANGE_SQUARED;
+        double range = XingClient.INSTANCE.settings.autoCrystal.placeRange;
+        return dx * dx + dy * dy + dz * dz <= range * range;
     }
 
     private static boolean isStrictFace(BlockPos base, Vec3d eyes, Direction face) {
@@ -267,12 +277,9 @@ final class NativeCycleSnapshotFactory {
     }
 
     static Hand crystalHand(ClientPlayerEntity player) {
-        if (player.getOffHandStack().isOf(Items.END_CRYSTAL)) return Hand.OFF_HAND;
-        if (player.getMainHandStack().isOf(Items.END_CRYSTAL)) return Hand.MAIN_HAND;
-        for (int slot = 0; slot < 9; slot++) {
-            if (player.getInventory().getStack(slot).isOf(Items.END_CRYSTAL)) return Hand.MAIN_HAND;
-        }
-        return null;
+        var settings = XingClient.INSTANCE.settings.autoCrystal;
+        return XingClient.INSTANCE.managers.interactions.placementHand(
+                stack -> stack.isOf(Items.END_CRYSTAL), settings.swapMode, settings.handMode);
     }
 
     private static NativeCycleSnapshot.Vec3 toNative(Vec3d value) {

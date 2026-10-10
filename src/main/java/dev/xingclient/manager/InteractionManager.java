@@ -14,6 +14,8 @@ import net.minecraft.util.hit.BlockHitResult;
 /** Shared entity attacks and block interactions for every module. */
 public final class InteractionManager {
     public enum Transport { PACKET, VANILLA }
+    public enum HandMode { MAINHAND, OFFHAND, PREFER_OFFHAND, PREFER_MAINHAND }
+    private final ItemHandSelector hands = new ItemHandSelector();
 
     private final NetworkManager network;
     private final InventoryManager inventory;
@@ -58,9 +60,25 @@ public final class InteractionManager {
     public boolean useBlock(ActionOwner owner, int priority, BlockHitResult hit,
             Predicate<ItemStack> item, InventoryManager.SwapMode swap, int restoreDelay,
             Transport transport, boolean swing) {
+        return useBlock(owner, priority, hit, item, swap, restoreDelay, transport, swing, HandMode.PREFER_OFFHAND);
+    }
+
+    public Hand placementHand(Predicate<ItemStack> item, InventoryManager.SwapMode swap, HandMode mode) {
+        CombatActionScheduler.requireClientThread();
+        var player = MinecraftClient.getInstance().player;
+        if (player == null) return null;
+        return hands.select(mode, swap, item.test(player.getMainHandStack()),
+                item.test(player.getOffHandStack()), inventory.findHotbar(item));
+    }
+
+    public boolean useBlock(ActionOwner owner, int priority, BlockHitResult hit,
+            Predicate<ItemStack> item, InventoryManager.SwapMode swap, int restoreDelay,
+            Transport transport, boolean swing, HandMode mode) {
         var player = MinecraftClient.getInstance().player;
         if (player == null || hit == null) return false;
-        if (item.test(player.getOffHandStack())) {
+        Hand hand = placementHand(item, swap, mode);
+        if (hand == null) return false;
+        if (hand == Hand.OFF_HAND) {
             return scheduler.execute(owner, priority, 1, CombatRateLimiter.Channel.BLOCK_PLACE,
                     () -> interact(owner, Hand.OFF_HAND, hit, transport, swing),
                     resources(owner, Hand.OFF_HAND, ActionResource.BLOCK_PLACE_PACKET, false)).success();

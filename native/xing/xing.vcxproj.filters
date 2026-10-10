@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClInclude Include="NoRenderModule.h"><Filter>Header Files</Filter></ClInclude>
+    <ClCompile Include="NoRenderModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="AutoRefillModule.h"><Filter>Header Files</Filter></ClInclude>
+    <ClCompile Include="AutoRefillModule.cpp"><Filter>Source Files</Filter></ClCompile>
     <Filter Include="Source Files">
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
@@ -18,6 +22,14 @@
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GameThreadPause.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="CrashoutModule.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="CrashoutBridge.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="FlightInventory.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="VelocityTypes.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="VelocityUtilities.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="VelocityModule.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="VelocityBridge.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="OwnershipLease.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="SlotSpoofManager.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="RotationManager.h"><Filter>Header Files</Filter></ClInclude>
@@ -106,6 +118,13 @@
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GameThreadPause.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="CrashoutModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="CrashoutBridge.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="FlightInventory.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="VelocityUtilities.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="VelocityModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="VelocityBridge.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="SlotSpoofManager.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="RotationManager.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="ManagerBridge.cpp"><Filter>Source Files</Filter></ClCompile>

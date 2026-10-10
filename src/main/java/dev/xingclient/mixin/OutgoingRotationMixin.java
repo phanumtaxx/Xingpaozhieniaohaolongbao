@@ -15,6 +15,7 @@ public abstract class OutgoingRotationMixin {
     private Packet<?> xingclient$rotate(Packet<?> packet) {
         if (XingClient.INSTANCE == null || !MinecraftClient.getInstance().isOnThread()) return packet;
         Packet<?> outgoing = XingClient.INSTANCE.managers.rotations.apply(packet);
+        XingClient.INSTANCE.managers.rotations.observe(outgoing);
         return XingClient.INSTANCE.managers.network.trackOutgoing((ClientConnection) (Object) this, packet, outgoing);
     }
 }

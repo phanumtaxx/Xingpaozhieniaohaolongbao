@@ -8,6 +8,12 @@ import dev.xingclient.module.NativeExampleModule;
 import dev.xingclient.module.NativeAutoCrystalModule;
 import dev.xingclient.module.FakePlayerModule;
 import dev.xingclient.module.MaceKillModule;
+import dev.xingclient.module.NativeCrashoutModule;
+import dev.xingclient.module.NativeVelocityModule;
+import dev.xingclient.module.NativeAutoRefillModule;
+import dev.xingclient.module.NativeNoRenderModule;
+import dev.xingclient.event.PacketReceiveEvent;
+import net.minecraft.network.packet.Packet;
 import dev.xingclient.manager.ClientManagers;
 import dev.xingclient.ui.NativeSmoke;
 import dev.xingclient.ui.WorldSmoke;
@@ -34,9 +40,13 @@ public final class XingClient implements ClientModInitializer {
     public final EventBus events = new EventBus();
     public final ModuleManager modules = new ModuleManager();
     public MaceKillModule maceKill;
+    public NativeCrashoutModule crashout;
+    public NativeVelocityModule velocity;
+    public NativeNoRenderModule noRender;
     public final ClientManagers managers = new ClientManagers(events);
     public MenuData menuData;
     private boolean shiftHeld;
+    private boolean restoreModulesPending;
     private final Set<String> pressed = new HashSet<>();
     private NativeSmoke smoke;
     private WorldSmoke worldSmoke;
@@ -50,6 +60,13 @@ public final class XingClient implements ClientModInitializer {
         modules.register(new NativeAutoCrystalModule(events));
         maceKill = new MaceKillModule(events);
         modules.register(maceKill);
+        crashout = new NativeCrashoutModule(events);
+        modules.register(crashout);
+        velocity = new NativeVelocityModule(events);
+        modules.register(velocity);
+        modules.register(new NativeAutoRefillModule(events));
+        noRender = new NativeNoRenderModule();
+        modules.register(noRender);
         menuData = new MenuData(modules);
 
         boolean worldCheck = FabricLoader.getInstance().isDevelopmentEnvironment()
@@ -65,7 +82,7 @@ public final class XingClient implements ClientModInitializer {
             .resolve("settings.json"));
         settings = store.load(menuData);
         friends = new FriendManager(settings, this::changed);
-        restoreModules();
+        restoreModulesPending = true;
         screen = new XingScreen(this);
         if (smokeMode) {
             settings = new ClientSettings().normalize(menuData);
@@ -94,12 +111,26 @@ public final class XingClient implements ClientModInitializer {
         }
     }
 
+    public boolean receivePacket(Packet<?> packet) {
+        if (settings == null || velocity == null) return false;
+        var event = new PacketReceiveEvent(packet);
+        velocity.receive(event);
+        events.post(event);
+        return event.isCancelled();
+    }
+
     public void changed() {
         store.save(settings);
     }
 
     public void postTickEvent(ClientTickEvent.Phase phase) {
-        if (phase == ClientTickEvent.Phase.START) managers.tick(MinecraftClient.getInstance());
+        if (phase == ClientTickEvent.Phase.START) {
+            managers.tick(MinecraftClient.getInstance());
+            if (restoreModulesPending) {
+                restoreModules();
+                restoreModulesPending = false;
+            }
+        }
         events.post(new ClientTickEvent(phase));
         if (phase == ClientTickEvent.Phase.END) managers.scheduler.resolve();
     }

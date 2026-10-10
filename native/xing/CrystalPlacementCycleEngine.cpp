@@ -84,6 +84,12 @@ CrystalPlacementCyclePlan CrystalPlacementCycleEngine::plan(const CrystalPlaceme
         }
     }
 
+    if (input.hasPendingPlacement && !result.placementRequiresSuccessfulSameTickBreak) {
+        result.actionPlan.reason = CrystalPlacementPlanReason::PlacementPending;
+        result.status = CrystalPlacementCycleStatus::NoPlacement;
+        return result;
+    }
+
     if (!input.hasCrystal) {
         scanCache_.clear();
         result.status = CrystalPlacementCycleStatus::NoCrystal;
@@ -112,8 +118,7 @@ CrystalPlacementCyclePlan CrystalPlacementCycleEngine::plan(const CrystalPlaceme
     cacheKey.phaseInfo = result.phaseInfo;
 
     result.didRescan = scanCache_.shouldRescan(cacheKey, input.scanInterval);
-    const int ignoredEntityId = result.placementRequiresSuccessfulSameTickBreak
-            ? result.earlyBreakPlan.crystalEntityId : input.placementWorld.ignoredEntityId;
+    const int ignoredEntityId = input.placementWorld.ignoredEntityId;
     if (result.didRescan) {
         CrystalPlacementScanInput scanInput = input.placementWorld;
         scanInput.ignoredEntityId = ignoredEntityId;
@@ -158,11 +163,15 @@ CrystalPlacementCyclePlan CrystalPlacementCycleEngine::plan(const CrystalPlaceme
     std::vector<CrystalPlacementScore> validPlacements;
     const std::vector<CrystalPlacementScore>& cached = scanCache_.placements();
     validPlacements.reserve(cached.size());
+    std::vector<CrystalPlacementCheck> checks;
+    checks.reserve(cached.size());
     for (const CrystalPlacementScore& placement : cached) {
-        validationInput.hasSimulatedAirBlock = placement.packetMineOpeningBoosted
-                && input.placementWorld.hasSimulatedAirBlock;
-        validationInput.simulatedAirBlock = input.placementWorld.simulatedAirBlock;
-        if (!CrystalPlacementScanner::canPlaceAt(validationInput, placement.placement.basePosition)) continue;
+        checks.push_back({placement.placement.basePosition, placement.packetMineOpeningBoosted});
+    }
+    const std::vector<bool> geometryValid = CrystalPlacementScanner::validate(validationInput, checks);
+    for (std::size_t index = 0; index < cached.size(); ++index) {
+        const CrystalPlacementScore& placement = cached[index];
+        if (!geometryValid[index]) continue;
         if (!isReachable(input.reachableBasesInWorldOrder, placement.placement.basePosition)) continue;
         validPlacements.push_back(placement);
     }
@@ -172,7 +181,8 @@ CrystalPlacementCyclePlan CrystalPlacementCycleEngine::plan(const CrystalPlaceme
     actionInput.placements = validPlacements;
     actionInput.clientReady = input.clientReady;
     actionInput.hasCrystal = input.hasCrystal;
-    actionInput.hasPendingPlacement = input.hasPendingPlacement;
+    actionInput.hasPendingPlacement = input.hasPendingPlacement
+            && !result.placementRequiresSuccessfulSameTickBreak;
     actionInput.damageSyncEnabled = input.damageSyncEnabled;
     actionInput.damageSyncReady = input.damageSyncReady;
     actionInput.hasPlacementHand = input.hasPlacementHand;

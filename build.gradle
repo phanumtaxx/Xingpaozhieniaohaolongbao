@@ -26,7 +26,7 @@ tasks.withType(JavaCompile).configureEach { options.release = 21 }
 processResources { inputs.property 'version', project.version; filesMatching('fabric.mod.json') { expand version: project.version } }
 test { useJUnitPlatform() }
 def smokeRun = project.hasProperty('guiSmoke') || project.hasProperty('worldSmoke') || project.hasProperty('maceSmoke')
-def authenticatedLaunch = project.hasProperty('devAuth') && !smokeRun
+def authenticatedLaunch = !providers.gradleProperty('devAuth').getOrElse('true').equalsIgnoreCase('false') && !smokeRun
 def devAuthDirectory = layout.projectDirectory.dir('run/devauth')
 tasks.register('prepareDevAuth') {
     onlyIf { authenticatedLaunch }
@@ -34,7 +34,7 @@ tasks.register('prepareDevAuth') {
         def config = devAuthDirectory.file('config.toml').asFile
         if (!config.exists()) {
             config.parentFile.mkdirs()
-            config.setText('defaultEnabled = false\ndefaultAccount = "main"\n\n[accounts.main]\ntype = "microsoft"\n', 'UTF-8')
+            config.setText('defaultEnabled = true\ndefaultAccount = "main"\n\n[accounts.main]\ntype = "microsoft"\n', 'UTF-8')
         }
     }
 }

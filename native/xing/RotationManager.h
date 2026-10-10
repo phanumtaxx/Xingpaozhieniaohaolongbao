@@ -15,11 +15,18 @@ public:
     bool ownedBy(std::uint64_t owner) const { return lease_.ownedBy(owner); }
     float yaw() const { return yaw_; }
     float pitch() const { return pitch_; }
+    void observe(float yaw, float pitch);
+    bool serverRotationKnown() const { return serverRotationKnown_; }
+    float serverYaw() const { return serverYaw_; }
+    float serverPitch() const { return serverPitch_; }
 
 private:
     OwnershipLease lease_;
     float yaw_ = 0.0f;
     float pitch_ = 0.0f;
+    bool serverRotationKnown_ = false;
+    float serverYaw_ = 0.0f;
+    float serverPitch_ = 0.0f;
 };
 
 } }

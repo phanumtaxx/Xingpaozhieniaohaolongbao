@@ -3,6 +3,7 @@
 #include "SlotSpoofManager.h"
 #include "RotationManager.h"
 #include "CombatActionState.h"
+#include "CrystalActionController.h"
 #include <cstring>
 
 namespace xing { namespace managers {
@@ -10,6 +11,7 @@ namespace {
 SlotSpoofManager slots;
 RotationManager rotations;
 CombatActionState activity;
+autocrystal::CrystalActionController crystals;
 
 template<typename T> T read(const std::uint8_t* input, std::size_t offset) {
     T value;
@@ -23,7 +25,7 @@ template<typename T> void write(std::uint8_t* output, std::size_t offset, T valu
 
 int dispatch(int event, const std::uint8_t* input, std::size_t inputLength,
         std::uint8_t* output, std::size_t outputLength) {
-    if (inputLength != 96 || outputLength != 144) return -2;
+    if (inputLength != 96 || outputLength != 176) return -2;
     const auto owner = read<std::uint64_t>(input, 0);
     const int priority = read<int>(input, 8);
     const int selectedSlot = read<int>(input, 16);
@@ -39,7 +41,33 @@ int dispatch(int event, const std::uint8_t* input, std::size_t inputLength,
     case ManagerEvent::RotationTick: rotations.tick(); break;
     case ManagerEvent::RotationRelease: rotations.release(owner); break;
     case ManagerEvent::RotationRead: break;
-    case ManagerEvent::Reset: slots.reset(); rotations.reset(); activity.clear(); break;
+    case ManagerEvent::RotationRequestAngles: commands.accepted = rotations.request(owner, priority,
+                read<float>(input, 40), read<float>(input, 44), read<int>(input, 36)); break;
+    case ManagerEvent::RotationObserve: rotations.observe(read<float>(input, 40), read<float>(input, 44)); break;
+    case ManagerEvent::RotationServerRead: break;
+    case ManagerEvent::Reset: slots.reset(); rotations.reset(); activity.clear(); crystals.reset(); break;
+    case ManagerEvent::CrystalTick:
+        crystals.tick();
+        if (crystals.pendingAge() > crystals.pendingTimeout()) crystals.clearPending();
+        break;
+    case ManagerEvent::CrystalAttack: crystals.markAttackCooldown(read<int>(input, 12), read<int>(input, 36)); break;
+    case ManagerEvent::CrystalAttackCoolingDown: commands.accepted = crystals.attackCoolingDown(read<int>(input, 12)); break;
+    case ManagerEvent::CrystalReset: crystals.reset(); break;
+    case ManagerEvent::CrystalPlaced:
+        crystals.markPlaced({read<int>(input, 40), read<int>(input, 44), read<int>(input, 48)},
+                read<int>(input, 12), read<int>(input, 36));
+        break;
+    case ManagerEvent::CrystalSpawned:
+        crystals.markSpawned(read<int>(input, 12), {read<int>(input, 40), read<int>(input, 44), read<int>(input, 48)});
+        break;
+    case ManagerEvent::CrystalBroken: crystals.markBroken(); break;
+    case ManagerEvent::CrystalClearPending: crystals.clearPending(); break;
+    case ManagerEvent::CrystalRead: break;
+    case ManagerEvent::CrystalPacketReaction: commands.accepted = crystals.beginPacketReaction(read<std::int64_t>(input, 56)); break;
+    case ManagerEvent::CrystalRemoved: commands.accepted = crystals.markRemoved(read<int>(input, 12)); break;
+    case ManagerEvent::CrystalReplacementReady:
+        commands.accepted = crystals.replacementCrystalId(read<int>(input, 36) != 0) >= 0;
+        break;
     case ManagerEvent::RotationOwnership: commands.accepted = rotations.ownedBy(owner); break;
     case ManagerEvent::SlotAcquire: commands = slots.acquire(owner, priority, read<int>(input, 36), selectedSlot); break;
     case ManagerEvent::SlotBeginSilent: commands = slots.begin(owner, priority, read<int>(input, 12), selectedSlot,
@@ -66,9 +94,10 @@ int dispatch(int event, const std::uint8_t* input, std::size_t inputLength,
     write<int>(output, 8, commands.restoreClient ? 1 : 0);
     write<int>(output, 12, commands.selectSlot);
     write<int>(output, 16, commands.selectClient ? 1 : 0);
-    write<float>(output, 20, rotations.yaw());
-    write<float>(output, 24, rotations.pitch());
-    write<int>(output, 28, rotations.active() ? 1 : 0);
+    const bool serverRead = static_cast<ManagerEvent>(event) == ManagerEvent::RotationServerRead;
+    write<float>(output, 20, serverRead ? rotations.serverYaw() : rotations.yaw());
+    write<float>(output, 24, serverRead ? rotations.serverPitch() : rotations.pitch());
+    write<int>(output, 28, (serverRead ? rotations.serverRotationKnown() : rotations.active()) ? 1 : 0);
     const auto& slot = slots.state();
     write(output, 32, slot.owner); write(output, 40, slot.priority); write(output, 44, slot.leaseTicks);
     write(output, 48, slot.silentOwner); write(output, 56, slot.transaction);
@@ -80,7 +109,14 @@ int dispatch(int event, const std::uint8_t* input, std::size_t inputLength,
     write(output, 128, activity.remaining(CombatActivity::Crystal));
     write(output, 132, activity.remaining(CombatActivity::PacketMine));
     write(output, 136, activity.remaining(CombatActivity::Generic));
-    write<int>(output, 140, 1);
+    write<int>(output, 140, 2);
+    write<int>(output, 144, crystals.hasPendingBase() ? 1 : 0);
+    const auto base = crystals.pendingBase();
+    write<int>(output, 148, base.x); write<int>(output, 152, base.y); write<int>(output, 156, base.z);
+    write<int>(output, 160, crystals.pendingTargetId());
+    write<int>(output, 164, crystals.pendingAge());
+    write<int>(output, 168, crystals.spawnedCrystalId());
+    write<int>(output, 172, crystals.deadAge());
     return 0;
 }
 } }

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "CrystalActionController.h"
+#include <algorithm>
 
 namespace xing { namespace autocrystal {
 
@@ -12,6 +13,7 @@ bool BlockPosition::operator!=(const BlockPosition& other) const {
 }
 
 void CrystalActionController::tick() {
+    if (attackCooldown_ > 0 && --attackCooldown_ == 0) lastAttackedCrystalId_ = -1;
     if (hasPendingBase_) ++pendingAge_;
     if (spawnedCrystalId_ >= 0) ++spawnedAge_;
     if (deadAge_ >= 0) ++deadAge_;
@@ -29,11 +31,12 @@ void CrystalActionController::markPlaced(const BlockPosition& base) {
     markPlaced(base, -1);
 }
 
-void CrystalActionController::markPlaced(const BlockPosition& base, int targetId) {
+void CrystalActionController::markPlaced(const BlockPosition& base, int targetId, int timeoutTicks) {
     pendingBase_ = base;
     hasPendingBase_ = true;
     pendingTargetId_ = targetId;
     pendingAge_ = 0;
+    pendingTimeout_ = (std::max)(1, (std::min)(20, timeoutTicks));
     ++expectedCycles_;
     spawnedCrystalId_ = -1;
     hasSpawnedBase_ = false;
@@ -72,6 +75,41 @@ void CrystalActionController::markBroken() {
     lastAction_ = CrystalAction::BreakSent;
 }
 
+void CrystalActionController::markAttackCooldown(int crystalId, int ticks) {
+    markAttack(crystalId);
+    lastAttackedCrystalId_ = crystalId;
+    attackCooldown_ = (std::max)(0, ticks);
+}
+
+bool CrystalActionController::attackCoolingDown(int crystalId) const {
+    return crystalId == lastAttackedCrystalId_ && attackCooldown_ > 0;
+}
+
+bool CrystalActionController::beginPacketReaction(std::int64_t tick) {
+    if (hasPacketReactionTick_ && lastPacketReactionTick_ == tick) return false;
+    hasPacketReactionTick_ = true;
+    lastPacketReactionTick_ = tick;
+    return true;
+}
+
+bool CrystalActionController::markRemoved(int crystalId) {
+    if (crystalId < 0 || (crystalId != spawnedCrystalId_ && crystalId != lastAttackedCrystalId_)) return false;
+    if (crystalId == spawnedCrystalId_) {
+        if (hasSpawnedBase_ && isPending(spawnedBase_)) clearPending();
+        spawnedCrystalId_ = -1;
+        hasSpawnedBase_ = false;
+        spawnedBase_ = {};
+        spawnedAge_ = 0;
+        deadAge_ = 0;
+    }
+    if (crystalId == lastAttackedCrystalId_) {
+        lastAttackedCrystalId_ = -1;
+        attackCooldown_ = 0;
+    }
+    hasPacketReactionTick_ = false;
+    return true;
+}
+
 void CrystalActionController::clearPending() {
     hasPendingBase_ = false;
     pendingBase_ = {};
@@ -84,6 +122,7 @@ void CrystalActionController::reset() {
     pendingBase_ = {};
     pendingTargetId_ = -1;
     pendingAge_ = 0;
+    pendingTimeout_ = 5;
     expectedCycles_ = 0;
     spawnedCrystalId_ = -1;
     hasSpawnedBase_ = false;
@@ -92,6 +131,10 @@ void CrystalActionController::reset() {
     attacks_ = 0;
     deadAge_ = -1;
     lastAction_ = CrystalAction::Idle;
+    lastAttackedCrystalId_ = -1;
+    attackCooldown_ = 0;
+    hasPacketReactionTick_ = false;
+    lastPacketReactionTick_ = 0;
 }
 
 bool CrystalActionController::hasPendingBase() const {
@@ -108,6 +151,10 @@ int CrystalActionController::pendingTargetId() const {
 
 int CrystalActionController::pendingAge() const {
     return pendingAge_;
+}
+
+int CrystalActionController::pendingTimeout() const {
+    return pendingTimeout_;
 }
 
 CrystalAction CrystalActionController::lastAction() const {
@@ -148,6 +195,10 @@ int CrystalActionController::deadAge() const {
 
 bool CrystalActionController::isDeadOnTick() const {
     return deadAge_ == 0;
+}
+
+int CrystalActionController::replacementCrystalId(bool sameTickBreakPlace) const {
+    return sameTickBreakPlace && isDeadOnTick() ? spawnedCrystalId_ : -1;
 }
 
 } }
