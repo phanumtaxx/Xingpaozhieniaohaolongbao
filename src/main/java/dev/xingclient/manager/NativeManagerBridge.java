@@ -22,6 +22,7 @@ final class NativeManagerBridge {
     static final int CRYSTAL_PACKET_REACTION = 34;
     static final int CRYSTAL_REMOVED = 35;
     static final int CRYSTAL_REPLACEMENT_READY = 36;
+    static final int SLOT_FINISH_VISIBLE_ACTION = 37;
 
     private final ByteBuffer input = XingNativeBridge.allocate(96);
     private final ByteBuffer output = XingNativeBridge.allocate(176);
@@ -90,6 +91,13 @@ final class NativeManagerBridge {
             request.putInt(16, selectedSlot);
             request.putInt(24, restoreDelay);
             request.putInt(40, success ? 1 : 0);
+        });
+    }
+
+    Result finishVisibleAction(ActionOwner owner, int originalSlot, int selectedSlot) {
+        return dispatch(SLOT_FINISH_VISIBLE_ACTION, owner, request -> {
+            request.putInt(12, originalSlot);
+            request.putInt(16, selectedSlot);
         });
     }
 

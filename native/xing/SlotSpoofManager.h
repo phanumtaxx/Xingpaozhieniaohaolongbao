@@ -37,6 +37,7 @@ public:
     SlotCommands begin(std::uint64_t owner, int priority, int slot, int selectedSlot,
         int serverSlot, bool silent, int holdTicks);
     SlotCommands finish(std::uint64_t owner, int restoreDelay, bool success, int selectedSlot);
+    SlotCommands finishVisibleAction(std::uint64_t owner, int originalSlot, int selectedSlot);
     SlotCommands tick(int selectedSlot);
     SlotCommands release(std::uint64_t owner, int selectedSlot);
     void scheduleRestore(std::uint64_t owner, int delay);

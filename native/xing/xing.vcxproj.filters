@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClCompile Include="PacketMineManager.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClInclude Include="PacketMineManager.h"><Filter>Header Files</Filter></ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MovementController.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="AltitudeController.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="HudLayout.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="NametagsModule.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="SwingModule.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ViewModelModule.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="NoRenderModule.h"><Filter>Header Files</Filter></ClInclude>
     <ClCompile Include="NoRenderModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="HudLayout.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="BreakEspModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="NametagsModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="SwingModule.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="ViewModelModule.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClInclude Include="AutoRefillModule.h"><Filter>Header Files</Filter></ClInclude>
     <ClCompile Include="AutoRefillModule.cpp"><Filter>Source Files</Filter></ClCompile>
     <Filter Include="Source Files">
@@ -22,9 +37,9 @@
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GameThreadPause.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="FlightModule.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="CrashoutModule.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="CrashoutBridge.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="FlightBridge.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="FlightInventory.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="VelocityTypes.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="VelocityUtilities.h"><Filter>Header Files</Filter></ClInclude>
@@ -93,6 +108,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MovementController.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="AltitudeController.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="NativeExampleModule.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -118,9 +135,9 @@
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GameThreadPause.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="FlightModule.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="CrashoutModule.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="CrashoutBridge.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="FlightBridge.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="FlightInventory.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="VelocityUtilities.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="VelocityModule.cpp"><Filter>Source Files</Filter></ClCompile>
@@ -140,4 +157,10 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ShaderEffects.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ShaderPatterns.h"><Filter>Header Files</Filter></ClInclude>
+    <ClCompile Include="ShaderEffects.cpp"><Filter>Source Files</Filter></ClCompile>
+  </ItemGroup>
+  <ItemGroup><ClCompile Include="InventoryClickBudget.cpp"><Filter>Source Files</Filter></ClCompile></ItemGroup>
 </Project>

@@ -7,17 +7,16 @@ import dev.xingclient.module.ModuleManager;
 import dev.xingclient.module.NativeExampleModule;
 import dev.xingclient.module.NativeAutoCrystalModule;
 import dev.xingclient.module.FakePlayerModule;
-import dev.xingclient.module.MaceKillModule;
-import dev.xingclient.module.NativeCrashoutModule;
+import dev.xingclient.module.NativeFlightModule;
 import dev.xingclient.module.NativeVelocityModule;
 import dev.xingclient.module.NativeAutoRefillModule;
 import dev.xingclient.module.NativeNoRenderModule;
+import dev.xingclient.module.NativeShadersModule;
 import dev.xingclient.event.PacketReceiveEvent;
 import net.minecraft.network.packet.Packet;
 import dev.xingclient.manager.ClientManagers;
 import dev.xingclient.ui.NativeSmoke;
 import dev.xingclient.ui.WorldSmoke;
-import dev.xingclient.ui.MaceSmoke;
 import dev.xingclient.ui.XingScreen;
 import java.util.HashSet;
 import java.util.Set;
@@ -39,18 +38,25 @@ public final class XingClient implements ClientModInitializer {
     public MenuMusic music;
     public final EventBus events = new EventBus();
     public final ModuleManager modules = new ModuleManager();
-    public MaceKillModule maceKill;
-    public NativeCrashoutModule crashout;
+    public dev.xingclient.module.NativeSpeedMineModule speedMine;
+    public NativeFlightModule flight;
     public NativeVelocityModule velocity;
     public NativeNoRenderModule noRender;
+    public NativeShadersModule shaders;
+    public dev.xingclient.module.NativeViewModelModule viewModel;
+    public dev.xingclient.module.NativeSwingModule swing;
     public final ClientManagers managers = new ClientManagers(events);
+    public final dev.xingclient.render.web.WebOverlay webOverlay = new dev.xingclient.render.web.WebOverlay();
+    public dev.xingclient.module.WebOverlayModule webModule;
+    public dev.xingclient.module.NativeNametagsModule nametags;
+    public final dev.xingclient.render.hud.HudManager hud = new dev.xingclient.render.hud.HudManager();
     public MenuData menuData;
     private boolean shiftHeld;
+    private boolean hudEditorKeyHeld;
     private boolean restoreModulesPending;
     private final Set<String> pressed = new HashSet<>();
     private NativeSmoke smoke;
     private WorldSmoke worldSmoke;
-    private MaceSmoke maceSmoke;
 
     @Override
     public void onInitializeClient() {
@@ -58,23 +64,35 @@ public final class XingClient implements ClientModInitializer {
         modules.register(new NativeExampleModule(events));
         modules.register(new FakePlayerModule(events));
         modules.register(new NativeAutoCrystalModule(events));
-        maceKill = new MaceKillModule(events);
-        modules.register(maceKill);
-        crashout = new NativeCrashoutModule(events);
-        modules.register(crashout);
+        speedMine = new dev.xingclient.module.NativeSpeedMineModule();
+        modules.register(speedMine);
+        flight = new NativeFlightModule(events);
+        modules.register(flight);
         velocity = new NativeVelocityModule(events);
         modules.register(velocity);
         modules.register(new NativeAutoRefillModule(events));
         noRender = new NativeNoRenderModule();
         modules.register(noRender);
+        shaders = new NativeShadersModule();
+        modules.register(shaders);
+        viewModel = new dev.xingclient.module.NativeViewModelModule();
+        modules.register(viewModel);
+        swing = new dev.xingclient.module.NativeSwingModule();
+        modules.register(swing);
+        webModule = new dev.xingclient.module.WebOverlayModule();
+        modules.register(webModule);
+        nametags = new dev.xingclient.module.NativeNametagsModule();
+        modules.register(nametags);
+        modules.register(new dev.xingclient.module.NativeBreakEspModule());
+        var watermark = new dev.xingclient.module.NativeWatermarkModule();
+        modules.register(watermark);
         menuData = new MenuData(modules);
 
         boolean worldCheck = FabricLoader.getInstance().isDevelopmentEnvironment()
             && Boolean.getBoolean("xingclient.worldSmoke");
         boolean guiCheck = FabricLoader.getInstance().isDevelopmentEnvironment()
             && Boolean.getBoolean("xingclient.smoke");
-        boolean maceCheck = FabricLoader.getInstance().isDevelopmentEnvironment() && Boolean.getBoolean("xingclient.maceSmoke");
-        boolean smokeMode = guiCheck || worldCheck || maceCheck;
+        boolean smokeMode = guiCheck || worldCheck;
         music = new MenuMusic(smokeMode);
         Runtime.getRuntime().addShutdownHook(new Thread(music::close, "xingclient-music-on-exit"));
         store = new SettingsStore(FabricLoader.getInstance().getConfigDir()
@@ -86,24 +104,24 @@ public final class XingClient implements ClientModInitializer {
         screen = new XingScreen(this);
         if (smokeMode) {
             settings = new ClientSettings().normalize(menuData);
-            if (maceCheck) maceSmoke = new MaceSmoke(this);
-            else if (worldCheck) worldSmoke = new WorldSmoke(this);
+            if (worldCheck) worldSmoke = new WorldSmoke(this);
             else smoke = new NativeSmoke(this);
         }
         Runtime.getRuntime().addShutdownHook(new Thread(store::flush, "xingclient-save-on-exit"));
     }
 
     private void restoreModules() {
+        if (modules.get("watermark") instanceof dev.xingclient.module.NativeWatermarkModule watermark) {
+            watermark.registerEditor(hud);
+        }
         for (Module module : modules.all()) {
             ClientSettings.Entry entry = settings.modules.get(module.id());
-            // An experimental launch must always be started explicitly, never on login.
-            if (module instanceof MaceKillModule) { entry.enabled = false; continue; }
             if (!entry.enabled) {
                 continue;
             }
             try {
                 module.setEnabled(true);
-            } catch (LinkageError error) {
+            } catch (RuntimeException | LinkageError error) {
                 entry.enabled = false;
                 LoggerFactory.getLogger("xingclient").warn("Could not enable module " + module.name(), error);
                 changed();
@@ -150,6 +168,15 @@ public final class XingClient implements ClientModInitializer {
             }
         }
         shiftHeld = shift;
+        boolean editorKey = InputUtil.isKeyPressed(handle, GLFW.GLFW_KEY_RIGHT_ALT);
+        if (editorKey && !hudEditorKeyHeld && mc.getOverlay() == null && mc.isWindowFocused()) {
+            if (mc.currentScreen instanceof dev.xingclient.render.hud.HudEditorScreen editor) editor.close();
+            else if (mc.currentScreen == null || mc.currentScreen == screen || mc.currentScreen instanceof TitleScreen) {
+                mc.setScreen(new dev.xingclient.render.hud.HudEditorScreen(mc.currentScreen));
+            }
+        }
+        hudEditorKeyHeld = editorKey;
+
 
         for (Module module : modules.all()) {
             ClientSettings.Entry entry = settings.modules.get(module.id());
@@ -162,7 +189,7 @@ public final class XingClient implements ClientModInitializer {
                     module.toggle();
                     entry.enabled = module.isEnabled();
                     changed();
-                } catch (LinkageError error) {
+                } catch (RuntimeException | LinkageError error) {
                     LoggerFactory.getLogger("xingclient").warn("Could not toggle module " + module.name(), error);
                 }
             }
@@ -172,6 +199,5 @@ public final class XingClient implements ClientModInitializer {
 
         if (smoke != null) smoke.tick(mc);
         if (worldSmoke != null) worldSmoke.tick(mc);
-        if (maceSmoke != null) maceSmoke.tick(mc);
     }
 }

@@ -1,0 +1,93 @@
+/* ClickGUI HUD module window. Author: uint32. */
+#xing-hud-editor-shade {
+  position: fixed; inset: 0; z-index: 80; pointer-events: none;
+  background: #00000024;
+}
+#xing-hud-editor-shade.has-grid {
+  background-image: radial-gradient(#ffffff20 .75px, transparent .75px);
+  background-size: 24px 24px;
+}
+#xing-hud-editor {
+  --editor-scale: 1;
+  --accent: #edacd0;
+  --secondary: #a6d6f4;
+  --panel-opacity: .9;
+  position: fixed; inset: 0; z-index: 200; pointer-events: none;
+  width: calc(100% / var(--editor-scale)); height: calc(100% / var(--editor-scale));
+  transform: scale(var(--editor-scale)); transform-origin: top left;
+  color: #c5c3c6; color-scheme: dark;
+  font: 400 15px/1.5 "Xing Jost", sans-serif;
+}
+#xing-hud-editor[hidden], #xing-hud-editor-shade[hidden] { display: none; }
+#xing-hud-editor * { box-sizing: border-box; }
+#xing-hud-editor button, #xing-hud-editor input { font: inherit; border-radius: 0; }
+#xing-hud-editor button { cursor: pointer; color: inherit; border: 0; }
+#xing-hud-editor button:focus-visible, #xing-hud-editor input:focus-visible {
+  outline: 1px solid var(--secondary); outline-offset: 1px;
+}
+#xing-hud-editor button:disabled { opacity: .3; cursor: default; }
+.hud-editor-window {
+  position: absolute; left: 24px; top: 48px; width: 200px;
+  pointer-events: auto; border: 1px solid var(--accent);
+  background: rgba(30, 27, 33, var(--panel-opacity));
+}
+.hud-editor-window-title {
+  position: relative; height: 26px; display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #25202b; cursor: grab; touch-action: none; user-select: none;
+}
+.hud-editor-window-title:active { cursor: grabbing; }
+#xing-hud-editor .hud-editor-collapse {
+  position: absolute; right: 3px; top: 0; height: 25px; padding: 0 4px;
+  font-size: 13px; color: #352c45; background: transparent; opacity: 0;
+}
+.hud-editor-window-title:hover .hud-editor-collapse, .hud-editor-collapse:focus-visible { opacity: 1 !important; }
+.hud-editor-window-content {
+  max-height: calc(var(--editor-height, 800px) - 100px); overflow: auto;
+  scrollbar-width: thin; scrollbar-color: var(--accent) #1e1b21;
+}
+.hud-editor-window.collapsed .hud-editor-window-content { display: none; }
+.hud-editor-widget-list { padding: 1px; }
+.hud-editor-module-row { display: flex; align-items: center; height: 26px; }
+.hud-editor-module-row:hover { background: #ffffff0d; }
+#xing-hud-editor .hud-editor-widget {
+  flex: 1; min-width: 0; height: 100%; padding: 0 5px; text-align: left;
+  background: transparent; font-size: 15px; line-height: 26px;
+}
+.hud-editor-module.enabled > .hud-editor-module-row { background: var(--accent); }
+.hud-editor-module.enabled > .hud-editor-module-row .hud-editor-widget { color: #292333; }
+#xing-hud-editor .hud-editor-module-options {
+  height: 100%; width: 20px; padding: 0; background: transparent; color: #938799; opacity: 0;
+}
+.hud-editor-module-row:hover .hud-editor-module-options,
+.hud-editor-module.open .hud-editor-module-options,
+.hud-editor-module-options:focus-visible { opacity: 1 !important; }
+#xing-hud-editor .hud-editor-module.enabled .hud-editor-module-options { color: #41334d; }
+.hud-editor-inspector { padding: 11px 8px; background: #111015; border-bottom: 1px solid #ffffff1a; font-size: 11px; }
+.hud-editor-label { display: block; color: #aaa0b2; font-size: 11px; margin: 10px 0 7px; }
+.hud-editor-label:first-child { margin-top: 0; }
+.hud-editor-anchors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; background: #24212b; padding: 3px; }
+#xing-hud-editor .hud-editor-anchor { height: 18px; background: transparent; color: #938799; display: grid; place-items: center; }
+.hud-editor-anchor::after { content: ""; width: 4px; height: 4px; background: currentColor; }
+#xing-hud-editor .hud-editor-anchor[aria-pressed="true"] { background: var(--accent); color: #292333; }
+.hud-editor-position { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.hud-editor-field { display: flex; align-items: center; gap: 5px; padding: 3px 5px; background: #24212b; border: 1px solid #42394f; }
+.hud-editor-field span { color: #aaa0b2; }
+#xing-hud-editor input[type="number"] { width: 100%; background: transparent; color: #d3c3dd; border: 0; font-size: 11px; appearance: textfield; }
+#xing-hud-editor input::-webkit-inner-spin-button { appearance: none; }
+.hud-editor-font-label { display: flex; justify-content: space-between; }
+.hud-editor-font-label span { color: var(--accent); }
+#xing-hud-editor input[type="range"] { width: 100%; height: 3px; accent-color: var(--accent); margin: 4px 0; cursor: pointer; }
+#xing-hud-editor .hud-editor-button { padding: 3px 6px; color: var(--accent); background: #28232f; border: 1px solid #443c52; font-size: 10px; }
+#xing-hud-editor .hud-editor-button:hover { background: #383041; }
+.hud-editor-reset { margin-top: 10px; }
+.hud-editor-layout { padding: 11px 8px; border-top: 1px solid #ffffff1a; font-size: 11px; }
+.hud-editor-options { display: flex; gap: 14px; margin-top: 10px; color: #aaa0b2; }
+.hud-editor-options label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.hud-editor-options input { accent-color: var(--accent); width: 12px; height: 12px; margin: 0; }
+.hud-editor-actions { display: flex; justify-content: space-between; gap: 4px; padding: 0 8px 10px; }
+.hud-editor-guide { position: absolute; background: var(--accent); opacity: .6; pointer-events: none; }
+.hud-editor-guide.vertical { width: 1px; top: 0; bottom: 0; }
+.hud-editor-guide.horizontal { height: 1px; left: 0; right: 0; }
+body.xing-hud-editing .xing-hud-widget { pointer-events: auto; cursor: grab; outline: 1px dashed #edacd060; outline-offset: 6px; }
+body.xing-hud-editing .xing-hud-widget[data-hud-selected="true"] { outline: 1px solid #edacd0b0; }
+body.xing-hud-editing .xing-hud-widget[data-hud-dragging="true"] { cursor: grabbing; }

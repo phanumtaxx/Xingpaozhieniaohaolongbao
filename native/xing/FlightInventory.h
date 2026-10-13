@@ -8,6 +8,7 @@ namespace xing { namespace flight {
 struct ItemSnapshot {
     bool empty = true;
     bool elytra = false;
+    bool glider = false;
     bool rocket = false;
     bool damageable = false;
     bool chestArmor = false;
@@ -25,8 +26,15 @@ public:
     virtual bool healthy() const = 0;
     virtual bool swapChest(int inventorySlot, int menuSlot) = 0;
     virtual bool startGliding() = 0;
+    virtual bool inventoryReady() = 0;
+    virtual bool startGlidingWithElytra(int hotbar) = 0;
+    virtual bool stageElytra(int source, int hotbar) = 0;
+    virtual bool stagedElytraMatches() = 0;
+    virtual bool restoreFlightEquipment() = 0;
+    virtual void jump() = 0;
     virtual bool useRocket(int inventorySlot, int menuSlot, bool hotbar) = 0;
     virtual void requestRotation(float yaw, float pitch) = 0;
+    virtual bool requestClientRotation(float yaw, float pitch) = 0;
     virtual float currentYaw() = 0;
     virtual float currentPitch() = 0;
     virtual void clearRotation() = 0;
@@ -46,6 +54,7 @@ public:
     enum class Failure { None, InvalidContext, NoUsableElytra, UnsafeInventory, InventoryBusy, SwapFailed };
     bool equip(const InventorySnapshot& inventory, const ItemSnapshot& chest, bool safe, FlightGameAccess& game);
     bool restore(bool valid, bool alive, bool safe, FlightGameAccess& game);
+    int inventorySlot() const { return inventorySlot_; }
     bool active() const { return inventorySlot_ >= 0; }
     Failure failure() const { return failure_; }
     void reset();
@@ -54,6 +63,19 @@ public:
 private:
     int inventorySlot_ = -1;
     Failure failure_ = Failure::None;
+};
+
+class HotbarElytraUtil {
+public:
+    int prepare(InventorySnapshot& inventory, int selectedSlot, bool safe, FlightGameAccess& game);
+    bool restore(FlightGameAccess& game);
+    bool active() const { return stagedSlot_ >= 0 || cleanupPending_; }
+    ElytraHotswapUtil::Failure failure() const { return failure_; }
+    void reset();
+private:
+    int stagedSlot_ = -1;
+    bool cleanupPending_ = false;
+    ElytraHotswapUtil::Failure failure_ = ElytraHotswapUtil::Failure::None;
 };
 
 class FireworkInventoryUtil {

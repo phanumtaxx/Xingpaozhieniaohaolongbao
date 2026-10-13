@@ -12,14 +12,131 @@ public final class ClientSettings {
     public boolean mascot = true, blossoms = true;
     public Map<String, Entry> modules = new LinkedHashMap<>();
     public AutoCrystalSettings autoCrystal = new AutoCrystalSettings();
-    public MaceKillSettings maceKill = new MaceKillSettings();
-    public CrashoutSettings crashout = new CrashoutSettings();
+    public FlightSettings flight = new FlightSettings();
     public VelocitySettings velocity = new VelocitySettings();
     public AutoRefillSettings autoRefill = new AutoRefillSettings();
     public NoRenderSettings noRender = new NoRenderSettings();
+    public ViewModelSettings viewModel = new ViewModelSettings();
+    public SwingSettings swing = new SwingSettings();
+    public WebOverlaySettings webOverlay = new WebOverlaySettings();
+    public NametagsSettings nametags = new NametagsSettings();
+    public WatermarkSettings watermark = new WatermarkSettings();
+    public HudEditorSettings hudEditor = new HudEditorSettings();
+    public SpeedMineSettings speedMine = new SpeedMineSettings();
+    public BreakEspSettings breakEsp = new BreakEspSettings();
+    public dev.xingclient.render.ShaderSettings shaders = new dev.xingclient.render.ShaderSettings();
     public Map<String, Position> positions = new LinkedHashMap<>();
     public Map<String, SavedTarget> targets = new LinkedHashMap<>();
     public Set<String> friends = new LinkedHashSet<>();
+
+    public static final class SpeedMineSettings {
+        public double range = 5, threshold = 1;
+        public boolean multitask = true, strictDirection = true, rotate, swing = true;
+        public int confirmationTicks = 30, retries = 2;
+        public dev.xingclient.manager.InventoryManager.SwapMode swapMode = dev.xingclient.manager.InventoryManager.SwapMode.SILENT;
+
+        public void normalize() {
+            range = clampFinite(range, 1, 6, 5);
+            threshold = clampFinite(threshold, .5, 1, 1);
+            confirmationTicks = Math.clamp(confirmationTicks, 10, 100);
+            retries = Math.clamp(retries, 0, 5);
+            if (swapMode == null) swapMode = dev.xingclient.manager.InventoryManager.SwapMode.SILENT;
+        }
+    }
+
+    public static final class BreakEspSettings {
+        public enum Animation { GROW, RISE, PULSE, TWIST, BOUNCE, SHRINK }
+        public enum Easing { LINEAR, SMOOTH, CUBIC, SINE, QUINT }
+        public Animation animation = Animation.GROW;
+        public Easing easing = Easing.SMOOTH;
+        public boolean self = true, others = true, throughWalls = true, backFaces;
+        public boolean progressColor = true, labels = true, dashed;
+        public int maximum = 16, startColor = 0xedacd0, endColor = 0xa6d6f4;
+        public double range = 32, smoothing = 90, fade = 220, minimum = 0, inset = 0;
+        public double rotation = 120, pulse = .18, frequency = 2;
+        public double fill = .18, outline = .9, lineWidth = 1.25, glow = 0;
+        public double dashSpeed = 1, fontSize = 8;
+
+        public void normalize() {
+            if (animation == null) animation = Animation.GROW;
+            if (easing == null) easing = Easing.SMOOTH;
+            maximum = Math.clamp(maximum, 1, 64);
+            startColor &= 0xffffff; endColor &= 0xffffff;
+            range = clampFinite(range, 4, 128, 32);
+            smoothing = clampFinite(smoothing, 0, 600, 90);
+            fade = clampFinite(fade, 0, 1200, 220);
+            minimum = clampFinite(minimum, 0, 1, 0);
+            inset = clampFinite(inset, 0, .1, 0);
+            rotation = clampFinite(rotation, 0, 360, 120);
+            pulse = clampFinite(pulse, 0, .5, .18);
+            frequency = clampFinite(frequency, 0, 6, 2);
+            fill = clampFinite(fill, 0, 1, .18);
+            outline = clampFinite(outline, 0, 1, .9);
+            lineWidth = clampFinite(lineWidth, .25, 6, 1.25);
+            glow = clampFinite(glow, 0, 12, 0);
+            dashSpeed = clampFinite(dashSpeed, 0, 8, 1);
+            fontSize = clampFinite(fontSize, 4, 16, 8);
+        }
+    }
+
+    public static final class HudEditorSettings {
+        public double windowX = 24, windowY = 48, blur = 4;
+        public boolean snap = true, grid = true;
+
+        public void normalize() {
+            windowX = clampFinite(windowX, 0, 16384, 24);
+            windowY = clampFinite(windowY, 0, 16384, 48);
+            blur = clampFinite(blur, 0, 12, 4);
+        }
+    }
+
+    public static final class WatermarkSettings {
+        public dev.xingclient.render.hud.HudManager.Anchor anchor=dev.xingclient.render.hud.HudManager.Anchor.TOP_LEFT;
+        public double x=8,y=8,fontSize=11;
+        public void normalize() {
+            if(anchor==null) anchor=dev.xingclient.render.hud.HudManager.Anchor.TOP_LEFT;
+            x=clampFinite(x,-16384,16384,8);y=clampFinite(y,-16384,16384,8);fontSize=clampFinite(fontSize,4,24,11);
+        }
+    }
+    public static final class NametagsSettings {
+        public double range=256, offset=.35, fontSize=6, blur=12, backgroundAlpha=.2;
+        public int backgroundColor=0xffffff;
+        public double paddingX=3.25, paddingY=3.25, cornerRadius=2.25;
+        public boolean invisible=true;
+        public void normalize() {
+            range=clampFinite(range,16,256,256);offset=clampFinite(offset,0,2,.35);
+            fontSize=clampFinite(fontSize,4,18,6);blur=clampFinite(blur,0,12,12);
+            backgroundAlpha=clampFinite(backgroundAlpha,0,1,.2);backgroundColor&=0xffffff;
+            paddingX=clampFinite(paddingX,0,24,3.25);paddingY=clampFinite(paddingY,0,16,3.25);
+            cornerRadius=clampFinite(cornerRadius,0,16,2.25);
+        }
+    }
+    public static final class WebOverlaySettings {
+        public int fps = 60;
+        public boolean followVsync = true;
+        public void normalize() { fps = Math.clamp(fps, 15, 360); }
+    }
+    public static final class ViewModelSettings {
+        public boolean renderArms = true, vanillaItems = true, syncHands;
+        public double mainX, mainY, mainZ, offX, offY, offZ, rotateX, rotateY, rotateZ;
+        public double scaleX = 1, scaleY = 1, scaleZ = 1;
+        public void normalize() {
+            mainX=clampFinite(mainX,-2,2,0); mainY=clampFinite(mainY,-2,2,0); mainZ=clampFinite(mainZ,-2,2,0);
+            offX=clampFinite(offX,-2,2,0); offY=clampFinite(offY,-2,2,0); offZ=clampFinite(offZ,-2,2,0);
+            if(syncHands) { offX=mainX; offY=mainY; offZ=mainZ; }
+            rotateX=clampFinite(rotateX,-180,180,0); rotateY=clampFinite(rotateY,-180,180,0); rotateZ=clampFinite(rotateZ,-180,180,0);
+            scaleX=clampFinite(scaleX,.05,3,1); scaleY=clampFinite(scaleY,.05,3,1); scaleZ=clampFinite(scaleZ,.05,3,1);
+        }
+    }
+    public static final class SwingSettings {
+        public boolean overrideHand, overrideSpeed = true, oldAnimation;
+        public net.minecraft.util.Hand hand = net.minecraft.util.Hand.MAIN_HAND;
+        public int speed = 12;
+        public void normalize() {
+            if(hand == null) hand = net.minecraft.util.Hand.MAIN_HAND;
+            speed = Math.clamp(speed, 1, 18);
+        }
+    }
 
     public static final class AutoRefillSettings {
         public int delay = 3, threshold = 16;
@@ -128,43 +245,24 @@ public final class ClientSettings {
         public Position(double x, double y) { this.x = x; this.y = y; }
     }
 
-    public static final class MaceKillSettings {
-        public int charges = 5, chargeIntervalTicks = 12, holdSeconds = 15;
-        public int stallMillis = 1500;
-        /** Legacy config field; movement packets now use vanilla timing. */
-        @Deprecated public int heartbeatTicks = 10;
-        public double holdHeight = 1.2, minimumFall = 4, attackRange = 3;
-        public boolean autoAttack;
-        public void normalize() {
-            charges = Math.clamp(charges, 1, 8);
-            chargeIntervalTicks = Math.clamp(chargeIntervalTicks, 10, 30);
-            heartbeatTicks = Math.clamp(heartbeatTicks, 1, 20);
-            holdSeconds = Math.clamp(holdSeconds, 3, 30);
-            stallMillis = Math.clamp(stallMillis, 100, 4000);
-            holdHeight = clampFinite(holdHeight, .2, 3, 1.2);
-            minimumFall = clampFinite(minimumFall, 1.6, 20, 4);
-            attackRange = clampFinite(attackRange, 1, 3, 3);
-        }
-        public MaceKillSettings copy() {
-            normalize();
-            var copy = new MaceKillSettings();
-            copy.charges = charges; copy.chargeIntervalTicks = chargeIntervalTicks;
-            copy.holdSeconds = holdSeconds;
-            copy.stallMillis = stallMillis;
-            copy.heartbeatTicks = heartbeatTicks;
-            copy.holdHeight = holdHeight; copy.minimumFall = minimumFall;
-            copy.attackRange = attackRange; copy.autoAttack = autoAttack;
-            return copy;
-        }
-    }
-
-    public static final class CrashoutSettings {
+    public static final class FlightSettings {
+        public enum Mode { CREATIVE, GRIM, CRASHOUT }
+        public Mode mode = Mode.CRASHOUT;
+        public double horizontal = 3.0, vertical = 3.0;
+        public double crashoutHorizontal = .35;
+        public boolean antiKick, pitch, firework, idleFlipFlop = true;
+        public int flipFlopTicks = 1;
         public enum FlipFlop { FULL, WITH_FIREWORK, NONE }
         public double turnSpeed = 25.0, safetyMargin = .2;
         public int packetGap = 20;
         public boolean inventoryFireworks = true, hideFlyPose = true, spoofChestplate;
         public FlipFlop flipFlop = FlipFlop.FULL;
         public void normalize() {
+            if (mode == null) mode = Mode.CRASHOUT;
+            horizontal = clampFinite(horizontal, 1, 5, 3);
+            crashoutHorizontal = clampFinite(crashoutHorizontal, .08, 2, .35);
+            vertical = clampFinite(vertical, 1, 5, 3);
+            flipFlopTicks = Math.clamp(flipFlopTicks, 1, 20);
             turnSpeed = clampFinite(turnSpeed, 1, 180, 25);
             safetyMargin = clampFinite(safetyMargin, 0, 2, .2);
             packetGap = Math.clamp(packetGap, 1, 100);
@@ -204,15 +302,31 @@ public final class ClientSettings {
         opacity = Math.clamp(opacity, 40, 100);
         if (modules == null) modules = new LinkedHashMap<>();
         if (autoCrystal == null) autoCrystal = new AutoCrystalSettings();
-        if (maceKill == null) maceKill = new MaceKillSettings();
-        maceKill.normalize();
-        if (crashout == null) crashout = new CrashoutSettings();
-        crashout.normalize();
+        if (flight == null) flight = new FlightSettings();
+        flight.normalize();
         if (velocity == null) velocity = new VelocitySettings();
         velocity.normalize();
         if (autoRefill == null) autoRefill = new AutoRefillSettings();
         autoRefill.normalize();
         if (noRender == null) noRender = new NoRenderSettings();
+        if (viewModel == null) viewModel = new ViewModelSettings();
+        viewModel.normalize();
+        if (swing == null) swing = new SwingSettings();
+        swing.normalize();
+        if (webOverlay == null) webOverlay = new WebOverlaySettings();
+        webOverlay.normalize();
+        if(nametags==null) nametags=new NametagsSettings();
+        nametags.normalize();
+        if(watermark==null) watermark=new WatermarkSettings();
+        watermark.normalize();
+        if (hudEditor == null) hudEditor = new HudEditorSettings();
+        hudEditor.normalize();
+        if (speedMine == null) speedMine = new SpeedMineSettings();
+        speedMine.normalize();
+        if (breakEsp == null) breakEsp = new BreakEspSettings();
+        breakEsp.normalize();
+        if (shaders == null) shaders = new dev.xingclient.render.ShaderSettings();
+        shaders.normalize();
         autoCrystal.normalize();
         if (positions == null) positions = new LinkedHashMap<>();
         if (targets == null) targets = new LinkedHashMap<>();

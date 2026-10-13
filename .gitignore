@@ -19,3 +19,8 @@ native/xing/xing/x64/
 native/xing/x64/Debug/
 native/xing/x64/Release/*
 !native/xing/x64/Release/xing.dll
+
+# Embedded browser SDK, generated build files, and deployed runtime.
+native/web/vendor/
+native/web/build/
+native/web/runtime/
