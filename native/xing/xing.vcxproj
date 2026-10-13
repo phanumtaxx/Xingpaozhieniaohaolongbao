@@ -144,9 +144,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
-    <ClInclude Include="GameThreadPause.h" />
+    <ClInclude Include="HudLayout.h" />
+    <ClInclude Include="NametagsModule.h" />
+    <ClInclude Include="SwingModule.h" />
+    <ClInclude Include="ViewModelModule.h" />
+    <ClInclude Include="MovementController.h" />
+    <ClInclude Include="AltitudeController.h" />
     <ClInclude Include="CrashoutModule.h" />
-    <ClInclude Include="CrashoutBridge.h" />
+    <ClInclude Include="FlightModule.h" />
+    <ClInclude Include="FlightBridge.h" />
     <ClInclude Include="FlightInventory.h" />
     <ClInclude Include="VelocityTypes.h" />
     <ClInclude Include="VelocityUtilities.h" />
@@ -154,6 +160,7 @@
     <ClInclude Include="VelocityBridge.h" />
     <ClInclude Include="OwnershipLease.h" />
     <ClInclude Include="SlotSpoofManager.h" />
+    <ClInclude Include="PacketMineManager.h" />
     <ClInclude Include="RotationManager.h" />
     <ClInclude Include="ManagerBridge.h" />
     <ClInclude Include="CombatRateLimiter.h" />
@@ -168,6 +175,8 @@
     <ClInclude Include="NativeExampleModule.h" />
     <ClInclude Include="AutoRefillModule.h" />
     <ClInclude Include="NoRenderModule.h" />
+    <ClInclude Include="ShaderEffects.h" />
+    <ClInclude Include="ShaderPatterns.h" />
     <ClInclude Include="XingNativeBridge.h" />
     <ClInclude Include="CrystalActionController.h" />
     <ClInclude Include="CrystalPrediction.h" />
@@ -186,14 +195,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="GameThreadPause.cpp" />
+    <ClCompile Include="HudLayout.cpp" />
+    <ClCompile Include="BreakEspModule.cpp" />
+    <ClCompile Include="NametagsModule.cpp" />
+    <ClCompile Include="SwingModule.cpp" />
+    <ClCompile Include="ViewModelModule.cpp" />
+    <ClCompile Include="MovementController.cpp" />
+    <ClCompile Include="AltitudeController.cpp" />
     <ClCompile Include="CrashoutModule.cpp" />
-    <ClCompile Include="CrashoutBridge.cpp" />
+    <ClCompile Include="FlightModule.cpp" />
+    <ClCompile Include="FlightBridge.cpp" />
     <ClCompile Include="FlightInventory.cpp" />
     <ClCompile Include="VelocityUtilities.cpp" />
     <ClCompile Include="VelocityModule.cpp" />
     <ClCompile Include="VelocityBridge.cpp" />
     <ClCompile Include="SlotSpoofManager.cpp" />
+    <ClCompile Include="PacketMineManager.cpp" />
     <ClCompile Include="RotationManager.cpp" />
     <ClCompile Include="ManagerBridge.cpp" />
     <ClCompile Include="CombatRateLimiter.cpp" />
@@ -207,6 +224,8 @@
     <ClCompile Include="NativeExampleModule.cpp" />
     <ClCompile Include="AutoRefillModule.cpp" />
     <ClCompile Include="NoRenderModule.cpp" />
+    <ClCompile Include="ShaderEffects.cpp" />
+    <ClCompile Include="InventoryClickBudget.cpp" />
     <ClCompile Include="AutoCrystalPolicy.cpp" />
     <ClCompile Include="AutoCrystalBreakPolicy.cpp" />
     <ClCompile Include="AutoCrystalPlaceLifecyclePolicy.cpp" />

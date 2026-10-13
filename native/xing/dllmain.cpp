@@ -1,11 +1,10 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "NativeExampleModule.h"
 #include "XingNativeBridge.h"
 #include "ManagerBridge.h"
 #include "CombatSchedulerBridge.h"
 #include "WorldStateBridge.h"
-#include "GameThreadPause.h"
-#include "CrashoutBridge.h"
+#include "FlightBridge.h"
 #include "VelocityBridge.h"
 #include "AutoRefillModule.h"
 #include "NoRenderModule.h"
@@ -74,23 +73,12 @@ extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM*, void*) {
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_dev_xingclient_nativebridge_XingNativeBridge_nativeCrashout(
+Java_dev_xingclient_nativebridge_XingNativeBridge_nativeFlight(
         JNIEnv* env, jclass, jint event, jobject input, jobject output, jobject game) {
-    return xing::flight::dispatchCrashout(env, event, input, output, game);
+    return xing::flight::dispatchFlight(env, event, input, output, game);
 }
 
-extern "C" JNIEXPORT jlong JNICALL
-Java_dev_xingclient_nativebridge_XingNativeBridge_nativePauseGameThread(
-        JNIEnv*, jclass, jlong windowHandle, jint durationMillis) {
-    const auto result = xing::pauseGameThread(static_cast<std::uintptr_t>(windowHandle), durationMillis);
-    if (!result.valid) return -1;
-    return (static_cast<jlong>(result.elapsedMillis) << 1) | (result.cancelled ? 1 : 0);
-}
 
-extern "C" JNIEXPORT jint JNICALL
-Java_dev_xingclient_nativebridge_XingNativeBridge_nativePauseVersion(JNIEnv*, jclass) {
-    return 2;
-}
 
 BOOL APIENTRY DllMain(HMODULE, DWORD, LPVOID) {
     return TRUE;

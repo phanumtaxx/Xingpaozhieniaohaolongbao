@@ -27,7 +27,6 @@ public final class XingNativeBridge {
 
     private static boolean libraryLoaded;
 
-    public record PauseResult(int elapsedMillis, boolean cancelled) {}
 
     private XingNativeBridge() { }
 
@@ -79,11 +78,11 @@ public final class XingNativeBridge {
         return dispatch(AUTOCRYSTAL_CYCLE, 2, input, output);
     }
 
-    public static int crashout(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.FlightGameAccess game) {
+    public static int flight(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.FlightGameAccess game) {
         requireDirect(input, "input");
         requireDirect(output, "output");
         loadLibrary();
-        return nativeCrashout(event, input, output, game);
+        return nativeFlight(event, input, output, game);
     }
 
     public static int velocity(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.MovementWorldAccess world) {
@@ -91,23 +90,6 @@ public final class XingNativeBridge {
         requireDirect(output, "output");
         loadLibrary();
         return nativeVelocity(event, input, output, world);
-    }
-
-    public static void prepareGameThreadPause() {
-        loadLibrary();
-        if (nativePauseVersion() != 2)
-            throw new IllegalStateException("Native menu pause requires the updated DLL");
-    }
-
-    public static PauseResult pauseGameThread(long windowHandle, int durationMillis) {
-        if (!net.minecraft.client.MinecraftClient.getInstance().isOnThread())
-            throw new IllegalStateException("Game pause must run on the client thread");
-        if (durationMillis < 100 || durationMillis > 4000)
-            throw new IllegalArgumentException("Pause duration must be between 100 and 4000 ms");
-        loadLibrary();
-        long result = nativePauseGameThread(windowHandle, durationMillis);
-        if (result < 0) throw new IllegalStateException("Native menu pause requires a focused window with a title bar");
-        return new PauseResult((int) (result >>> 1), (result & 1) != 0);
     }
 
     private static void requireDirect(ByteBuffer buffer, String name) {
@@ -149,8 +131,6 @@ public final class XingNativeBridge {
     }
 
     private static native int nativeDispatch(int policy, int event, ByteBuffer input, ByteBuffer output);
-    private static native int nativeCrashout(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.FlightGameAccess game);
+    private static native int nativeFlight(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.FlightGameAccess game);
     private static native int nativeVelocity(int event, ByteBuffer input, ByteBuffer output, dev.xingclient.manager.MovementWorldAccess world);
-    private static native long nativePauseGameThread(long windowHandle, int durationMillis);
-    private static native int nativePauseVersion();
 }

@@ -12,6 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class ServerCorrectionMixin {
     @Inject(method = "onPlayerPositionLook", at = @At("TAIL"))
     private void xingclient$clearRotation(PlayerPositionLookS2CPacket packet, CallbackInfo ci) {
-        if (XingClient.INSTANCE != null) XingClient.INSTANCE.managers.onServerCorrection();
+        var app = XingClient.INSTANCE;
+        if (app == null) return;
+        app.managers.onServerCorrection();
+        if (app.flight != null) app.flight.onServerCorrection();
     }
 }

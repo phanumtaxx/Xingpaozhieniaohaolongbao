@@ -34,6 +34,7 @@ int dispatch(int event, const std::uint8_t* input, std::size_t inputLength,
     case ManagerEvent::SlotBegin: commands = slots.begin(owner, priority, read<int>(input, 12), selectedSlot,
                 read<int>(input, 28), read<int>(input, 20) != 0, read<int>(input, 36)); break;
     case ManagerEvent::SlotFinish: commands = slots.finish(owner, read<int>(input, 24), read<int>(input, 40) != 0, selectedSlot); break;
+    case ManagerEvent::SlotFinishVisibleAction: commands = slots.finishVisibleAction(owner, read<int>(input, 12), selectedSlot); break;
     case ManagerEvent::SlotTick: commands = slots.tick(selectedSlot); break;
     case ManagerEvent::SlotRelease: commands = slots.release(owner, selectedSlot); break;
     case ManagerEvent::RotationRequest: commands.accepted = rotations.requestLookAt(owner, priority,

@@ -1,0 +1,21 @@
+#xing-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  font-family: "Xing Inter", sans-serif;
+  color: #f2f1f7;
+}
+.xing-hud-widget {
+  position: absolute;
+  width: max-content;
+  font-size: calc(var(--hud-font-size, 11px) * var(--hud-scale, 1));
+  line-height: 1.2;
+  white-space: nowrap;
+  user-select: none;
+}
+.hud-watermark {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-shadow: 0 1px 3px #00000060;
+}

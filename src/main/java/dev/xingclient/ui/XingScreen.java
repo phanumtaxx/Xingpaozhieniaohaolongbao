@@ -2,11 +2,14 @@ package dev.xingclient.ui;
 
 import dev.xingclient.*;
 import dev.xingclient.module.NativeAutoCrystalModule;
-import dev.xingclient.module.MaceKillModule;
-import dev.xingclient.module.NativeCrashoutModule;
+import dev.xingclient.module.NativeFlightModule;
 import dev.xingclient.module.NativeVelocityModule;
 import dev.xingclient.module.NativeAutoRefillModule;
 import dev.xingclient.module.NativeNoRenderModule;
+import dev.xingclient.module.NativeShadersModule;
+import dev.xingclient.module.NativeViewModelModule;
+import dev.xingclient.module.NativeSwingModule;
+import dev.xingclient.render.ShaderSettings;
 import java.util.*;
 import java.util.function.DoubleConsumer;
 import net.minecraft.client.gui.DrawContext;
@@ -193,6 +196,8 @@ public final class XingScreen extends Screen {
         if(p.maxScroll>0){double thumb=Math.max(18,p.bodyHeight*p.bodyHeight/content);GuiDraw.rect(ctx,x+panelWidth-3,top+(p.bodyHeight-thumb)*p.scroll/p.maxScroll,2,thumb,color);}
         ctx.disableScissor();
     }
+    private int shaderPage, shaderTarget, shaderColorTarget;
+
     private void renderSettings(DrawContext ctx,dev.xingclient.module.Module module,double x,double y,double width,int color){
         String key=module.id();var entry=app.settings.modules.get(key);
         int height=detailsHeight(module);
@@ -203,18 +208,281 @@ public final class XingScreen extends Screen {
         GuiDraw.rect(ctx,x+width-8-bw,y+30,bw,23,0xff28232f);GuiDraw.border(ctx,x+width-8-bw,y+30,bw,23,0xff443c52);
         text(ctx,label,x+width-2-bw,y+41,10,color);
         hit(x+width-8-bw,y+30,bw,23,()->{binding=key;notify("Press a key or mouse button - Esc cancels - Delete clears");});
+        if(module instanceof dev.xingclient.module.NativeSpeedMineModule)renderSpeedMineSettings(ctx,x,y+62,width,color);
         if(module instanceof NativeAutoCrystalModule)renderAutoCrystalSettings(ctx,x,y+62,width,color);
-        if(module instanceof MaceKillModule)renderMaceSettings(ctx,x,y+62,width,color);
-        if(module instanceof NativeCrashoutModule)renderCrashoutSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeFlightModule)renderFlightSettings(ctx,x,y+62,width,color);
         if(module instanceof NativeVelocityModule)renderVelocitySettings(ctx,x,y+62,width,color);
         if(module instanceof NativeAutoRefillModule)renderAutoRefillSettings(ctx,x,y+62,width,color);
         if(module instanceof NativeNoRenderModule)renderNoRenderSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeShadersModule)renderShaderSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeViewModelModule)renderViewModelSettings(ctx,x,y+62,width,color);
+        if(module instanceof NativeSwingModule)renderSwingSettings(ctx,x,y+62,width,color);
+        if(module instanceof dev.xingclient.module.WebOverlayModule)renderWebSettings(ctx,x,y+62,width,color);
+        if(module instanceof dev.xingclient.module.NativeNametagsModule)renderNametagsSettings(ctx,x,y+62,width,color);
+        if(module instanceof dev.xingclient.module.NativeBreakEspModule)renderBreakEspSettings(ctx,x,y+62,width,color);
+        if(module instanceof dev.xingclient.module.NativeWatermarkModule)renderWatermarkSettings(ctx,x,y+62,width,color);
     }
     private static int detailsHeight(dev.xingclient.module.Module module){
+        if(module instanceof dev.xingclient.module.NativeSpeedMineModule)return 310;
         if(module instanceof NativeAutoRefillModule)return 270;
         if(module instanceof NativeNoRenderModule)return 325;
-        return module instanceof NativeVelocityModule?640:module instanceof NativeCrashoutModule?250:module instanceof MaceKillModule?270:module instanceof NativeAutoCrystalModule?AUTO_CRYSTAL_SETTINGS_HEIGHT:MODULE_DETAILS_HEIGHT;
+        if(module instanceof NativeShadersModule)return 520;
+        if(module instanceof NativeViewModelModule)return 435;
+        if(module instanceof NativeSwingModule)return 205;
+        if(module instanceof dev.xingclient.module.WebOverlayModule)return 200;
+        if(module instanceof dev.xingclient.module.NativeNametagsModule)return 420;
+        if(module instanceof dev.xingclient.module.NativeBreakEspModule)return 500;
+        if(module instanceof dev.xingclient.module.NativeWatermarkModule)return 220;
+        return module instanceof NativeVelocityModule?640:module instanceof NativeFlightModule?350:module instanceof NativeAutoCrystalModule?AUTO_CRYSTAL_SETTINGS_HEIGHT:MODULE_DETAILS_HEIGHT;
     }
+    private void renderSpeedMineSettings(DrawContext ctx,double x,double y,double width,int color) {
+        var s = app.settings.speedMine;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderValueSetting(ctx,"Range",s.range,1,6,.1,x,y,lx,sx,sw,color,v->s.range=v);y+=24;
+        renderValueSetting(ctx,"Threshold",s.threshold,.5,1,.01,x,y,lx,sx,sw,color,v->s.threshold=v);y+=24;
+        renderChoiceSetting(ctx,"Tool swap",shaderLabel(s.swapMode),x,y,width,color,()->{
+            var modes=dev.xingclient.manager.InventoryManager.SwapMode.values();
+            s.swapMode=modes[(s.swapMode.ordinal()+1)%modes.length];app.changed();
+        });y+=26;
+        checkbox(ctx,"Multitask",x+8,y+5,width-16,s.multitask,color,()->{s.multitask=!s.multitask;app.changed();});y+=25;
+        checkbox(ctx,"Strict direction",x+8,y+5,width-16,s.strictDirection,color,()->{s.strictDirection=!s.strictDirection;app.changed();});y+=25;
+        checkbox(ctx,"Rotate",x+8,y+5,width-16,s.rotate,color,()->{s.rotate=!s.rotate;app.changed();});y+=25;
+        checkbox(ctx,"Swing",x+8,y+5,width-16,s.swing,color,()->{s.swing=!s.swing;app.changed();});y+=25;
+        renderValueSetting(ctx,"Confirm ticks",s.confirmationTicks,10,100,1,x,y,lx,sx,sw,color,v->s.confirmationTicks=(int)v);y+=24;
+        renderValueSetting(ctx,"Retries",s.retries,0,5,1,x,y,lx,sx,sw,color,v->s.retries=(int)v);
+    }
+
+    private int breakEspPage, breakEspColor;
+
+    private void renderBreakEspSettings(DrawContext ctx,double x,double y,double width,int color) {
+        var s=app.settings.breakEsp;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        String[] pages={"Targets","Animation","Style"};
+        renderChoiceSetting(ctx,"Section",pages[breakEspPage],x,y,width,color,()->breakEspPage=(breakEspPage+1)%pages.length);y+=26;
+        switch(breakEspPage) {
+            case 0 -> {
+                checkbox(ctx,"Self",x+8,y+5,width-16,s.self,color,()->{s.self=!s.self;app.changed();});y+=25;
+                checkbox(ctx,"Other players",x+8,y+5,width-16,s.others,color,()->{s.others=!s.others;app.changed();});y+=25;
+                checkbox(ctx,"Through walls",x+8,y+5,width-16,s.throughWalls,color,()->{s.throughWalls=!s.throughWalls;app.changed();});y+=25;
+                checkbox(ctx,"Back faces",x+8,y+5,width-16,s.backFaces,color,()->{s.backFaces=!s.backFaces;app.changed();});y+=25;
+                renderValueSetting(ctx,"Range",s.range,4,128,1,x,y,lx,sx,sw,color,v->s.range=v);y+=24;
+                renderValueSetting(ctx,"Max markers",s.maximum,1,64,1,x,y,lx,sx,sw,color,v->s.maximum=(int)v);
+            }
+            case 1 -> {
+                renderChoiceSetting(ctx,"Animation",shaderLabel(s.animation),x,y,width,color,()->{
+                    var modes=ClientSettings.BreakEspSettings.Animation.values();s.animation=modes[(s.animation.ordinal()+1)%modes.length];app.changed();
+                });y+=26;
+                renderChoiceSetting(ctx,"Easing",shaderLabel(s.easing),x,y,width,color,()->{
+                    var modes=ClientSettings.BreakEspSettings.Easing.values();s.easing=modes[(s.easing.ordinal()+1)%modes.length];app.changed();
+                });y+=26;
+                renderValueSetting(ctx,"Smooth MS",s.smoothing,0,600,10,x,y,lx,sx,sw,color,v->s.smoothing=v);y+=24;
+                renderValueSetting(ctx,"Fade MS",s.fade,0,1200,10,x,y,lx,sx,sw,color,v->s.fade=v);y+=24;
+                renderValueSetting(ctx,"Min size",s.minimum,0,1,.01,x,y,lx,sx,sw,color,v->s.minimum=v);y+=24;
+                renderValueSetting(ctx,"Inset",s.inset,0,.1,.001,x,y,lx,sx,sw,color,v->s.inset=v);y+=24;
+                renderValueSetting(ctx,"Rotation",s.rotation,0,360,5,x,y,lx,sx,sw,color,v->s.rotation=v);y+=24;
+                renderValueSetting(ctx,"Pulse",s.pulse,0,.5,.01,x,y,lx,sx,sw,color,v->s.pulse=v);y+=24;
+                renderValueSetting(ctx,"Pulse Hz",s.frequency,0,6,.1,x,y,lx,sx,sw,color,v->s.frequency=v);
+            }
+            case 2 -> {
+                renderValueSetting(ctx,"Fill alpha",s.fill,0,1,.01,x,y,lx,sx,sw,color,v->s.fill=v);y+=24;
+                renderValueSetting(ctx,"Edge alpha",s.outline,0,1,.01,x,y,lx,sx,sw,color,v->s.outline=v);y+=24;
+                renderValueSetting(ctx,"Line width",s.lineWidth,.25,6,.25,x,y,lx,sx,sw,color,v->s.lineWidth=v);y+=24;
+                renderValueSetting(ctx,"Glow",s.glow,0,12,.5,x,y,lx,sx,sw,color,v->s.glow=v);y+=24;
+                checkbox(ctx,"Progress colors",x+8,y+5,width-16,s.progressColor,color,()->{s.progressColor=!s.progressColor;app.changed();});y+=25;
+                renderChoiceSetting(ctx,"Color",breakEspColor==0?"Start":"End",x,y,width,color,()->breakEspColor=1-breakEspColor);y+=26;
+                int rgb=breakEspColor==0?s.startColor:s.endColor;
+                renderValueSetting(ctx,"Red",rgb>>16&255,0,255,1,x,y,lx,sx,sw,color,v->setBreakEspColor((rgb&0x00ffff)|((int)v<<16)));y+=24;
+                renderValueSetting(ctx,"Green",rgb>>8&255,0,255,1,x,y,lx,sx,sw,color,v->setBreakEspColor((rgb&0xff00ff)|((int)v<<8)));y+=24;
+                renderValueSetting(ctx,"Blue",rgb&255,0,255,1,x,y,lx,sx,sw,color,v->setBreakEspColor((rgb&0xffff00)|(int)v));y+=24;
+                checkbox(ctx,"Progress label",x+8,y+5,width-16,s.labels,color,()->{s.labels=!s.labels;app.changed();});y+=25;
+                renderValueSetting(ctx,"Font size",s.fontSize,4,16,.25,x,y,lx,sx,sw,color,v->s.fontSize=v);y+=24;
+                checkbox(ctx,"Dashed edges",x+8,y+5,width-16,s.dashed,color,()->{s.dashed=!s.dashed;app.changed();});y+=25;
+                renderValueSetting(ctx,"Dash speed",s.dashSpeed,0,8,.25,x,y,lx,sx,sw,color,v->s.dashSpeed=v);
+            }
+        }
+    }
+
+    private void setBreakEspColor(int color) {
+        if(breakEspColor==0)app.settings.breakEsp.startColor=color;
+        else app.settings.breakEsp.endColor=color;
+    }
+
+    private void renderWatermarkSettings(DrawContext ctx,double x,double y,double width,int color) {
+        var s=app.settings.watermark;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderChoiceSetting(ctx,"Anchor",shaderLabel(s.anchor),x,y,width,color,()->{
+            var anchors=dev.xingclient.render.hud.HudManager.Anchor.values();
+            s.anchor=anchors[(s.anchor.ordinal()+1)%anchors.length];app.changed();
+        });y+=26;
+        renderValueSetting(ctx,"X",s.x,-4096,4096,1,x,y,lx,sx,sw,color,v->s.x=v);y+=24;
+        renderValueSetting(ctx,"Y",s.y,-4096,4096,1,x,y,lx,sx,sw,color,v->s.y=v);y+=24;
+        renderValueSetting(ctx,"Font size",s.fontSize,4,24,.25,x,y,lx,sx,sw,color,v->s.fontSize=v);y+=26;
+        renderChoiceSetting(ctx,"Layout","Open HUD editor",x,y,width,color,
+            ()->client.setScreen(new dev.xingclient.render.hud.HudEditorScreen(this)));
+    }
+    private void renderNametagsSettings(DrawContext ctx,double x,double y,double width,int color) {
+        var s=app.settings.nametags;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderValueSetting(ctx,"Range",s.range,16,256,1,x,y,lx,sx,sw,color,v->s.range=v);y+=24;
+        renderValueSetting(ctx,"Font size",s.fontSize,4,18,.25,x,y,lx,sx,sw,color,v->s.fontSize=v);y+=24;
+        renderValueSetting(ctx,"Padding X",s.paddingX,0,24,.25,x,y,lx,sx,sw,color,v->s.paddingX=v);y+=24;
+        renderValueSetting(ctx,"Padding Y",s.paddingY,0,16,.25,x,y,lx,sx,sw,color,v->s.paddingY=v);y+=24;
+        renderValueSetting(ctx,"Corners",s.cornerRadius,0,16,.25,x,y,lx,sx,sw,color,v->s.cornerRadius=v);y+=24;
+        renderValueSetting(ctx,"Height",s.offset,0,2,.05,x,y,lx,sx,sw,color,v->s.offset=v);y+=24;
+        renderValueSetting(ctx,"Blur",s.blur,0,12,.5,x,y,lx,sx,sw,color,v->s.blur=v);y+=24;
+        renderChoiceSetting(ctx,"Background",String.format("#%06X",s.backgroundColor),x,y,width,color,()->{
+            int[] colors={0x13151d,0x000000,0x242934,0x393344};
+            int selected=-1;for(int i=0;i<colors.length;i++) if(colors[i]==s.backgroundColor) selected=i;
+            s.backgroundColor=colors[(selected+1)%colors.length];app.changed();
+        });y+=26;
+        renderValueSetting(ctx,"Red",s.backgroundColor>>16&255,0,255,1,x,y,lx,sx,sw,color,
+            v->s.backgroundColor=s.backgroundColor&0x00ffff|((int)v<<16));y+=22;
+        renderValueSetting(ctx,"Green",s.backgroundColor>>8&255,0,255,1,x,y,lx,sx,sw,color,
+            v->s.backgroundColor=s.backgroundColor&0xff00ff|((int)v<<8));y+=22;
+        renderValueSetting(ctx,"Blue",s.backgroundColor&255,0,255,1,x,y,lx,sx,sw,color,
+            v->s.backgroundColor=s.backgroundColor&0xffff00|(int)v);y+=22;
+        renderValueSetting(ctx,"Alpha",s.backgroundAlpha,0,1,.05,x,y,lx,sx,sw,color,v->s.backgroundAlpha=v);y+=24;
+        checkbox(ctx,"Invisibles",x+8,y+5,width-16,s.invisible,color,()->{s.invisible=!s.invisible;app.changed();});
+    }
+    private void renderWebSettings(DrawContext ctx,double x,double y,double width,int color) {
+        checkbox(ctx,"Follow VSync",x+8,y+5,width-16,app.settings.webOverlay.followVsync,color,()->{
+            app.settings.webOverlay.followVsync=!app.settings.webOverlay.followVsync;app.changed();
+        });y+=24;
+        renderValueSetting(ctx,"Manual FPS",app.settings.webOverlay.fps,15,360,1,x,y,x+8,x+90,Math.max(20,width-126),color,
+            value->app.settings.webOverlay.fps=(int)value);
+        y+=25;
+        renderChoiceSetting(ctx,"Assets","Reload page",x,y,width,color,()->app.webOverlay.reload());
+        y+=26;
+        text(ctx,app.webOverlay.frameRateStatus(),x+8,y+8,10,color);y+=20;
+        text(ctx,"config/xingclient/web",x+8,y+8,10,color);
+    }
+    private void renderViewModelSettings(DrawContext ctx,double x,double y,double width,int color) {
+        var s=app.settings.viewModel;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        checkbox(ctx,"Render arms",x+8,y+5,width-16,s.renderArms,color,()->{s.renderArms=!s.renderArms;app.changed();});y+=25;
+        checkbox(ctx,"Vanilla items",x+8,y+5,width-16,s.vanillaItems,color,()->{s.vanillaItems=!s.vanillaItems;app.changed();});y+=25;
+        checkbox(ctx,"Sync hands",x+8,y+5,width-16,s.syncHands,color,()->{s.normalize();s.syncHands=!s.syncHands;s.normalize();app.changed();});y+=25;
+        renderValueSetting(ctx,"Mainhand X",s.mainX,-2,2,.01,x,y,lx,sx,sw,color,v->{s.mainX=v;s.normalize();});y+=22;
+        renderValueSetting(ctx,"Mainhand Y",s.mainY,-2,2,.01,x,y,lx,sx,sw,color,v->{s.mainY=v;s.normalize();});y+=22;
+        renderValueSetting(ctx,"Mainhand Z",s.mainZ,-2,2,.01,x,y,lx,sx,sw,color,v->{s.mainZ=v;s.normalize();});y+=22;
+        if(!s.syncHands) {
+            renderValueSetting(ctx,"Offhand X",s.offX,-2,2,.01,x,y,lx,sx,sw,color,v->s.offX=v);y+=22;
+            renderValueSetting(ctx,"Offhand Y",s.offY,-2,2,.01,x,y,lx,sx,sw,color,v->s.offY=v);y+=22;
+            renderValueSetting(ctx,"Offhand Z",s.offZ,-2,2,.01,x,y,lx,sx,sw,color,v->s.offZ=v);y+=22;
+        }
+        renderValueSetting(ctx,"Rotate X",s.rotateX,-180,180,1,x,y,lx,sx,sw,color,v->s.rotateX=v);y+=22;
+        renderValueSetting(ctx,"Rotate Y",s.rotateY,-180,180,1,x,y,lx,sx,sw,color,v->s.rotateY=v);y+=22;
+        renderValueSetting(ctx,"Rotate Z",s.rotateZ,-180,180,1,x,y,lx,sx,sw,color,v->s.rotateZ=v);y+=22;
+        renderValueSetting(ctx,"Scale X",s.scaleX,.05,3,.01,x,y,lx,sx,sw,color,v->s.scaleX=v);y+=22;
+        renderValueSetting(ctx,"Scale Y",s.scaleY,.05,3,.01,x,y,lx,sx,sw,color,v->s.scaleY=v);y+=22;
+        renderValueSetting(ctx,"Scale Z",s.scaleZ,.05,3,.01,x,y,lx,sx,sw,color,v->s.scaleZ=v);
+    }
+    private void renderSwingSettings(DrawContext ctx,double x,double y,double width,int color) {
+        var s=app.settings.swing;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        checkbox(ctx,"Override hand",x+8,y+5,width-16,s.overrideHand,color,()->{s.overrideHand=!s.overrideHand;app.changed();});y+=25;
+        renderChoiceSetting(ctx,"Hand",s.hand==net.minecraft.util.Hand.MAIN_HAND?"Main hand":"Offhand",x,y,width,color,
+            ()->{s.hand=s.hand==net.minecraft.util.Hand.MAIN_HAND?net.minecraft.util.Hand.OFF_HAND:net.minecraft.util.Hand.MAIN_HAND;app.changed();});y+=25;
+        checkbox(ctx,"Override speed",x+8,y+5,width-16,s.overrideSpeed,color,()->{s.overrideSpeed=!s.overrideSpeed;app.changed();});y+=25;
+        renderValueSetting(ctx,"Swing speed",s.speed,1,18,1,x,y,lx,sx,sw,color,v->s.speed=(int)v);y+=22;
+        checkbox(ctx,"Old animation",x+8,y+5,width-16,s.oldAnimation,color,()->{s.oldAnimation=!s.oldAnimation;app.changed();});
+    }
+
+    private void renderShaderSettings(DrawContext ctx, double x, double y, double width, int color) {
+        var s = app.settings.shaders;
+        String[] pages = {"Targets", "Style", "Colors", "Sky"};
+        renderChoiceSetting(ctx, "Section", pages[shaderPage], x, y, width, color,
+            () -> shaderPage = (shaderPage + 1) % pages.length);
+        y += 26;
+        double lx = x + 8, sx = x + 90, sw = Math.max(20, width - 126);
+        switch (shaderPage) {
+            case 0 -> {
+                checkbox(ctx,"Players",x+8,y+5,width-16,s.players,color,()->{s.players=!s.players;app.changed();}); y+=25;
+                checkbox(ctx,"Self (third person)",x+8,y+5,width-16,s.self,color,()->{s.self=!s.self;app.changed();}); y+=25;
+                checkbox(ctx,"Crystals",x+8,y+5,width-16,s.crystals,color,()->{s.crystals=!s.crystals;app.changed();}); y+=25;
+                checkbox(ctx,"Hands and items",x+8,y+5,width-16,s.hands,color,()->{s.hands=!s.hands;app.changed();}); y+=25;
+                checkbox(ctx,"Hostiles",x+8,y+5,width-16,s.hostiles,color,()->{s.hostiles=!s.hostiles;app.changed();}); y+=25;
+                checkbox(ctx,"Passive mobs",x+8,y+5,width-16,s.passive,color,()->{s.passive=!s.passive;app.changed();}); y+=25;
+                checkbox(ctx,"Include friends",x+8,y+5,width-16,s.friends,color,()->{s.friends=!s.friends;app.changed();}); y+=25;
+                checkbox(ctx,"Invisibles",x+8,y+5,width-16,s.invisible,color,()->{s.invisible=!s.invisible;app.changed();}); y+=25;
+                renderValueSetting(ctx,"Range",s.range,1,256,1,x,y,lx,sx,sw,color,v->s.range=v);
+            }
+            case 1 -> {
+                renderChoiceSetting(ctx,"Entities",shaderLabel(s.material),x,y,width,color,()->{s.material=nextShaderMaterial(s.material);app.changed();}); y+=26;
+                renderChoiceSetting(ctx,"Crystals",shaderLabel(s.crystalMaterial),x,y,width,color,()->{s.crystalMaterial=nextShaderMaterial(s.crystalMaterial);app.changed();}); y+=26;
+                renderChoiceSetting(ctx,"Hands",shaderLabel(s.handMaterial),x,y,width,color,()->{s.handMaterial=nextShaderMaterial(s.handMaterial);app.changed();}); y+=26;
+                renderValueSetting(ctx,"Fill",s.fillOpacity,0,1,0.05,x,y,lx,sx,sw,color,v->s.fillOpacity=v); y+=24;
+                renderValueSetting(ctx,"Outline",s.outlineOpacity,0,1,0.05,x,y,lx,sx,sw,color,v->s.outlineOpacity=v); y+=24;
+                renderValueSetting(ctx,"Line width",s.outlineWidth,0,3,0.25,x,y,lx,sx,sw,color,v->s.outlineWidth=v); y+=24;
+                renderValueSetting(ctx,"Glow",s.glowStrength,0,1,0.05,x,y,lx,sx,sw,color,v->s.glowStrength=v); y+=24;
+                renderValueSetting(ctx,"Glow radius",s.glowRadius,1,12,1,x,y,lx,sx,sw,color,v->s.glowRadius=v); y+=24;
+                renderValueSetting(ctx,"Motion",s.speed,0,1,0.05,x,y,lx,sx,sw,color,v->s.speed=v);
+            }
+            case 2 -> {
+                String[] targets={"Global","Entities","Crystals","Hands","Sky"};
+                renderChoiceSetting(ctx,"Target",targets[shaderColorTarget],x,y,width,color,
+                    ()->shaderColorTarget=(shaderColorTarget+1)%targets.length); y+=26;
+                if(shaderColorTarget==0) {
+                    renderChoiceSetting(ctx,"Palette",shaderLabel(s.palette),x,y,width,color,()->{s.palette=nextPastelPalette(s.palette);s.usePalette();app.changed();}); y+=26;
+                    y=renderShaderColor(ctx,"Primary",s.primary,x,y,width,color,v->s.primary=v);
+                    y=renderShaderColor(ctx,"Secondary",s.secondary,x,y,width,color,v->s.secondary=v);
+                    y=renderShaderColor(ctx,"Accent",s.accent,x,y,width,color,v->s.accent=v);
+                } else {
+                    var style=s.styles()[shaderColorTarget-1];
+                    checkbox(ctx,"Custom colors",x+8,y+5,width-16,style.customColors,color,()->{style.customColors=!style.customColors;app.changed();}); y+=25;
+                    y=renderShaderColor(ctx,"Primary",style.primary,x,y,width,color,v->{style.primary=v;style.customColors=true;});
+                    y=renderShaderColor(ctx,"Secondary",style.secondary,x,y,width,color,v->{style.secondary=v;style.customColors=true;});
+                    y=renderShaderColor(ctx,"Accent",style.accent,x,y,width,color,v->{style.accent=v;style.customColors=true;});
+                }
+                renderValueSetting(ctx,"Brightness",s.brightness,0.1,3,0.05,x,y,lx,sx,sw,color,v->s.brightness=v); y+=24;
+                renderValueSetting(ctx,"Saturation",s.saturation,0,3,0.05,x,y,lx,sx,sw,color,v->s.saturation=v);
+            }
+            case 3 -> {
+                checkbox(ctx,"Custom sky",x+8,y+5,width-16,s.sky,color,()->{s.sky=!s.sky;app.changed();}); y+=25;
+                renderChoiceSetting(ctx,"Sky",shaderLabel(s.skyMode),x,y,width,color,
+                    ()->{var modes=ShaderSettings.skyModes(); for(int i=0;i<modes.length;i++) if(modes[i]==s.skyMode){s.skyMode=modes[(i+1)%modes.length];break;}app.changed();}); y+=26;
+                checkbox(ctx,"Vanilla sun",x+8,y+5,width-16,s.vanillaSun,color,()->{s.vanillaSun=!s.vanillaSun;app.changed();}); y+=25;
+                checkbox(ctx,"Vanilla moon",x+8,y+5,width-16,s.vanillaMoon,color,()->{s.vanillaMoon=!s.vanillaMoon;app.changed();}); y+=25;
+                checkbox(ctx,"Vanilla stars/glow",x+8,y+5,width-16,s.vanillaCelestials,color,()->{s.vanillaCelestials=!s.vanillaCelestials;app.changed();}); y+=25;
+                renderValueSetting(ctx,"Motion",s.speed,0,1,0.05,x,y,lx,sx,sw,color,v->s.speed=v); y+=24;
+                renderValueSetting(ctx,"Intensity",s.skyIntensity,0.1,1.5,0.05,x,y,lx,sx,sw,color,v->s.skyIntensity=v);
+            }
+        }
+    }
+
+    private double renderShaderColor(DrawContext ctx, String label, int rgb, double x, double y,
+                                     double width, int color, java.util.function.IntConsumer setter) {
+        text(ctx,label,x+8,y+8,10,color); y+=15;
+        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderValueSetting(ctx,"Red",rgb>>16&255,0,255,1,x,y,lx,sx,sw,color,
+            v->{setter.accept((rgb&0x00ffff)|((int)v<<16));if(shaderColorTarget==0)app.settings.shaders.palette=ShaderSettings.Palette.CUSTOM;}); y+=22;
+        renderValueSetting(ctx,"Green",rgb>>8&255,0,255,1,x,y,lx,sx,sw,color,
+            v->{setter.accept((rgb&0xff00ff)|((int)v<<8));if(shaderColorTarget==0)app.settings.shaders.palette=ShaderSettings.Palette.CUSTOM;}); y+=22;
+        renderValueSetting(ctx,"Blue",rgb&255,0,255,1,x,y,lx,sx,sw,color,
+            v->{setter.accept((rgb&0xffff00)|(int)v);if(shaderColorTarget==0)app.settings.shaders.palette=ShaderSettings.Palette.CUSTOM;});
+        return y+24;
+    }
+
+    private static ShaderSettings.Material nextShaderMaterial(ShaderSettings.Material current) {
+        var modes=ShaderSettings.simpleMaterials();
+        for(int i=0;i<modes.length;i++) if(modes[i]==current) return modes[(i+1)%modes.length];
+        return modes[0];
+    }
+    private static ShaderSettings.Palette nextPastelPalette(ShaderSettings.Palette current) {
+        var palettes=new ShaderSettings.Palette[] {ShaderSettings.Palette.COTTON,ShaderSettings.Palette.LAVENDER,
+            ShaderSettings.Palette.MINT,ShaderSettings.Palette.PEACH,ShaderSettings.Palette.CUSTOM};
+        for(int i=0;i<palettes.length;i++) if(palettes[i]==current) return palettes[(i+1)%palettes.length];
+        return palettes[0];
+    }
+
+    private static String shaderLabel(Enum<?> option) {
+        return option.name().toLowerCase(java.util.Locale.ROOT).replace('_',' ');
+    }
+    private static <T extends Enum<T>> T nextShaderOption(T value) {
+        T[] values=value.getDeclaringClass().getEnumConstants();
+        return values[(value.ordinal()+1)%values.length];
+    }
+
     private void renderAutoRefillSettings(DrawContext ctx,double x,double y,double width,int color){
         var s=app.settings.autoRefill;
         double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
@@ -275,32 +543,41 @@ public final class XingScreen extends Screen {
         text(ctx,label+": "+value,x+8,y+8,11,color);
         hit(x+8,y-3,width-16,22,cycle);
     }
-    private void renderCrashoutSettings(DrawContext ctx,double x,double y,double width,int color){
-        var s=app.settings.crashout;
+    private void renderFlightSettings(DrawContext ctx,double x,double y,double width,int color){
+        var s=app.settings.flight;
         double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
+        renderChoiceSetting(ctx,"Mode",s.mode.name(),x,y,width,color,()->{
+            var modes=ClientSettings.FlightSettings.Mode.values();
+            s.mode=modes[(s.mode.ordinal()+1)%modes.length];app.changed();
+        });y+=25;
+        if(s.mode==ClientSettings.FlightSettings.Mode.CREATIVE){
+            renderValueSetting(ctx,"Horizontal",s.horizontal,1,5,.1,x,y,lx,sx,sw,color,v->s.horizontal=v);y+=22;
+            renderValueSetting(ctx,"Vertical",s.vertical,1,5,.1,x,y,lx,sx,sw,color,v->s.vertical=v);y+=22;
+            checkbox(ctx,"Anti-kick",x+8,y+5,width-16,s.antiKick,color,()->{s.antiKick=!s.antiKick;app.changed();});
+            return;
+        }
+        checkbox(ctx,"Pitch",x+8,y+5,width-16,s.pitch,color,()->{s.pitch=!s.pitch;app.changed();});y+=25;
         renderValueSetting(ctx,"Turn speed",s.turnSpeed,1,180,1,x,y,lx,sx,sw,color,v->s.turnSpeed=v);y+=22;
+        if(s.mode==ClientSettings.FlightSettings.Mode.GRIM){
+            checkbox(ctx,"Firework",x+8,y+5,width-16,s.firework,color,()->{s.firework=!s.firework;app.changed();});y+=25;
+            checkbox(ctx,"Idle flip-flop",x+8,y+5,width-16,s.idleFlipFlop,color,()->{s.idleFlipFlop=!s.idleFlipFlop;app.changed();});y+=25;
+            renderValueSetting(ctx,"Flip-flop ticks",s.flipFlopTicks,1,20,1,x,y,lx,sx,sw,color,v->s.flipFlopTicks=(int)v);y+=22;
+            checkbox(ctx,"Hide fly pose",x+8,y+5,width-16,s.hideFlyPose,color,()->{s.hideFlyPose=!s.hideFlyPose;app.changed();});y+=25;
+            checkbox(ctx,"Spoof chestplate",x+8,y+5,width-16,s.spoofChestplate,color,()->{s.spoofChestplate=!s.spoofChestplate;app.changed();});
+            return;
+        }
+        renderValueSetting(ctx,"Horizontal speed",s.crashoutHorizontal,.08,2,.01,x,y,lx,sx,sw,color,v->s.crashoutHorizontal=v);y+=22;
         renderValueSetting(ctx,"Rocket margin",s.safetyMargin,0,2,.05,x,y,lx,sx,sw,color,v->s.safetyMargin=v);y+=22;
         renderValueSetting(ctx,"Packet gap",s.packetGap,1,100,1,x,y,lx,sx,sw,color,v->s.packetGap=(int)v);y+=22;
         String mode=switch(s.flipFlop){case FULL->"Full";case WITH_FIREWORK->"With firework";case NONE->"None";};
         text(ctx,"Flip-flop: "+mode,x+8,y+8,11,color);
         hit(x+8,y-3,width-16,22,()->{
-            var modes=ClientSettings.CrashoutSettings.FlipFlop.values();
+            var modes=ClientSettings.FlightSettings.FlipFlop.values();
             s.flipFlop=modes[(s.flipFlop.ordinal()+1)%modes.length];app.changed();
         });y+=25;
         checkbox(ctx,"Inventory fireworks",x+8,y+5,width-16,s.inventoryFireworks,color,()->{s.inventoryFireworks=!s.inventoryFireworks;app.changed();});y+=25;
         checkbox(ctx,"Hide fly pose",x+8,y+5,width-16,s.hideFlyPose,color,()->{s.hideFlyPose=!s.hideFlyPose;app.changed();});y+=25;
         checkbox(ctx,"Spoof chestplate",x+8,y+5,width-16,s.spoofChestplate,color,()->{s.spoofChestplate=!s.spoofChestplate;app.changed();});
-    }
-    private void renderMaceSettings(DrawContext ctx,double x,double y,double width,int color){
-        var s=app.settings.maceKill;
-        text(ctx,"Experimental / one attempt",x+8,y+7,10,0xffaaa0b2);y+=22;
-        double lx=x+8,sx=x+90,sw=Math.max(20,width-126);
-        renderValueSetting(ctx,"Charges",s.charges,1,8,1,x,y,lx,sx,sw,color,v->s.charges=(int)v);y+=22;
-        renderValueSetting(ctx,"Shot ticks",s.chargeIntervalTicks,10,30,1,x,y,lx,sx,sw,color,v->s.chargeIntervalTicks=(int)v);y+=22;
-        renderValueSetting(ctx,"Min height",s.minimumFall,1.6,20,.2,x,y,lx,sx,sw,color,v->s.minimumFall=v);y+=22;
-        renderValueSetting(ctx,"Pause ms",s.stallMillis,100,4000,100,x,y,lx,sx,sw,color,v->s.stallMillis=(int)v);y+=22;
-        renderValueSetting(ctx,"Attack range",s.attackRange,1,3,.1,x,y,lx,sx,sw,color,v->s.attackRange=v);y+=25;
-        checkbox(ctx,"Auto attack",x+8,y+5,width-16,s.autoAttack,color,()->{s.autoAttack=!s.autoAttack;app.changed();});
     }
     private void renderAutoCrystalSettings(DrawContext ctx,double x,double y,double width,int color){
         ClientSettings.AutoCrystalSettings settings=app.settings.autoCrystal;

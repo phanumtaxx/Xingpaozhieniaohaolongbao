@@ -3,6 +3,8 @@ package dev.xingclient.manager;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
@@ -18,15 +20,72 @@ public final class RotationManager {
     private float yaw;
     private float pitch;
     private boolean restoreOnRelease;
+    private boolean rotateItemPackets = true;
+    private ActionOwner cameraOwner;
+    private ClientPlayerEntity cameraPlayer;
+    private float cameraYaw, cameraPitch;
+    private boolean cameraCorrectionPending;
+    public record CameraRotation(float yaw, float pitch) {}
     public record ServerRotation(boolean known, float yaw, float pitch) {}
 
     public boolean request(ActionOwner owner, int priority, float yaw, float pitch, int holdTicks) {
+        return request(owner, priority, yaw, pitch, holdTicks, true);
+    }
+
+    public boolean requestMovement(ActionOwner owner, int priority, float yaw, float pitch, int holdTicks) {
+        return request(owner, priority, yaw, pitch, holdTicks, false);
+    }
+
+    public boolean requestClientMovement(ActionOwner owner, int priority, float yaw, float pitch, int holdTicks) {
+        if (!requestMovement(owner, priority, yaw, pitch, holdTicks)) return false;
+        var player = MinecraftClient.getInstance().player;
+        if (cameraPlayer != player || !owner.equals(cameraOwner)) {
+            cameraOwner = owner;
+            cameraPlayer = player;
+            cameraYaw = player.getYaw();
+            cameraPitch = player.getPitch();
+        }
+        cameraCorrectionPending = false;
+        player.setYaw(this.yaw);
+        player.setPitch(this.pitch);
+        return true;
+    }
+
+    public CameraRotation cameraRotation(Entity target) {
+        return target == cameraPlayer && cameraPlayer == MinecraftClient.getInstance().player && cameraOwner != null
+                ? new CameraRotation(cameraYaw, cameraPitch) : null;
+    }
+
+    public boolean rotateCamera(Entity target, double deltaX, double deltaY) {
+        if (cameraRotation(target) == null) return false;
+        cameraYaw += (float) deltaX * 0.15f;
+        cameraPitch = Math.clamp(cameraPitch + (float) deltaY * 0.15f, -90.0f, 90.0f);
+        return true;
+    }
+
+    private void releaseCamera() {
+        if (cameraPlayer != null && cameraPlayer == MinecraftClient.getInstance().player) {
+            cameraPlayer.setYaw(cameraYaw);
+            cameraPlayer.setPitch(cameraPitch);
+            cameraPlayer.lastYaw = cameraYaw;
+            cameraPlayer.lastPitch = cameraPitch;
+        }
+        cameraOwner = null;
+        cameraPlayer = null;
+        cameraCorrectionPending = false;
+    }
+
+    private boolean request(ActionOwner owner, int priority, float yaw, float pitch, int holdTicks,
+            boolean rotateItems) {
         Objects.requireNonNull(owner);
         if (MinecraftClient.getInstance().player == null) return false;
         if (!scheduler.reserve(owner, priority, holdTicks, ActionResource.ROTATION)) return false;
         var result = bridge.rotationAngles(NativeManagerBridge.ROTATION_REQUEST_ANGLES, owner, priority, yaw, pitch, holdTicks);
         update(result);
-        if (result.accepted()) restoreOnRelease = false;
+        if (result.accepted()) {
+            restoreOnRelease = false;
+            rotateItemPackets = rotateItems;
+        }
         if (!result.accepted()) scheduler.release(owner, ActionResource.ROTATION);
         return result.accepted();
     }
@@ -70,7 +129,10 @@ public final class RotationManager {
         Vec3d direction = target.subtract(player.getEyePos());
         var result = bridge.requestRotation(owner, priority, direction, holdTicks);
         update(result);
-        if (result.accepted()) restoreOnRelease = synchronizeNow;
+        if (result.accepted()) {
+            restoreOnRelease = synchronizeNow;
+            rotateItemPackets = true;
+        }
         if (!result.accepted()) {
             scheduler.release(owner, ActionResource.ROTATION);
             return false;
@@ -85,7 +147,7 @@ public final class RotationManager {
 
     public Packet<?> apply(Packet<?> packet) {
         if (!active) return packet;
-        if (packet instanceof PlayerInteractItemC2SPacket item) {
+        if (rotateItemPackets && packet instanceof PlayerInteractItemC2SPacket item) {
             return new PlayerInteractItemC2SPacket(item.getHand(), item.getSequence(), yaw, pitch);
         }
         if (!(packet instanceof PlayerMoveC2SPacket move)) return packet;
@@ -99,6 +161,7 @@ public final class RotationManager {
 
     public void release(ActionOwner owner) {
         Objects.requireNonNull(owner);
+        if (owner.equals(cameraOwner)) releaseCamera();
         scheduler.release(owner, ActionResource.ROTATION);
         boolean wasActive = active;
         if (bridge.used()) update(bridge.call(NativeManagerBridge.ROTATION_RELEASE, owner, -1));
@@ -113,10 +176,14 @@ public final class RotationManager {
     void tick() {
         boolean wasActive = active;
         if (bridge.used()) update(bridge.call(NativeManagerBridge.ROTATION_TICK, null, -1));
+        if (cameraOwner != null && !isOwnedBy(cameraOwner) && !cameraCorrectionPending) releaseCamera();
+        cameraCorrectionPending = false;
         if (wasActive && !active && restoreOnRelease) restoreCameraRotation();
     }
 
     void corrected() {
+        // Keep the view during lease reacquisition; retain Minecraft's corrected player angles.
+        cameraCorrectionPending = cameraOwner != null;
         if (bridge.used()) update(bridge.call(NativeManagerBridge.ROTATION_RELEASE, null, -1));
         active = false;
         var player = MinecraftClient.getInstance().player;
@@ -129,7 +196,7 @@ public final class RotationManager {
                 player.getYaw(), player.getPitch(), player.isOnGround(), player.horizontalCollision));
     }
 
-    void reset() { active = false; restoreOnRelease = false; }
+    void reset() { releaseCamera(); active = false; restoreOnRelease = false; rotateItemPackets = true; }
     private void update(NativeManagerBridge.Result result) {
         active = result.rotationActive();
         yaw = result.yaw();

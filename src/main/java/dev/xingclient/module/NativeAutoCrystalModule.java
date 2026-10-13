@@ -10,7 +10,6 @@ import dev.xingclient.manager.InteractionManager;
 import dev.xingclient.nativebridge.NativeCyclePlan;
 import dev.xingclient.nativebridge.NativeCycleSnapshot;
 import dev.xingclient.nativebridge.XingNativeBridge;
-import dev.xingclient.mixin.ClientPlayerInteractionManagerAccessor;
 import java.nio.ByteBuffer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -115,15 +114,6 @@ public final class NativeAutoCrystalModule extends Module {
         if (player == null || client.world == null || client.interactionManager == null) {
             cycleStatus = "Waiting for world";
             return;
-        }
-
-        ClientPlayerInteractionManagerAccessor mining =
-                (ClientPlayerInteractionManagerAccessor) client.interactionManager;
-        if (mining.xing$isBreakingBlock()) {
-            dev.xingclient.XingClient.INSTANCE.miningSync.update(
-                    mining.xing$getCurrentBreakingPos(), mining.xing$getCurrentBreakingProgress(), true, false);
-        } else {
-            dev.xingclient.XingClient.INSTANCE.miningSync.clear();
         }
 
         if (pendingBreakEntityId != -1) {

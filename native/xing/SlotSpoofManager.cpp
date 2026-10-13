@@ -87,6 +87,17 @@ SlotCommands SlotSpoofManager::finish(std::uint64_t owner, int restoreDelay, boo
     return commands;
 }
 
+SlotCommands SlotSpoofManager::finishVisibleAction(std::uint64_t owner, int originalSlot, int selectedSlot) {
+    if (!validSlot(originalSlot) || owner == 0 || tickOwner_ != owner
+        || state_.silentOwner != 0 || (state_.owner != 0 && state_.owner != owner)) return {};
+    auto commands = restoreVisible(selectedSlot);
+    // A synchronous action restores the slot captured before its callback.
+    commands.restoreSlot = originalSlot != selectedSlot ? originalSlot : -1;
+    commands.restoreClient = commands.restoreSlot >= 0;
+    commands.restoreOwner = owner;
+    return commands;
+}
+
 void SlotSpoofManager::scheduleRestore(std::uint64_t owner, int delay) {
     if (state_.silentOwner != owner || state_.state == SlotTransactionState::RestoreSent) return;
     state_.restoreTicks = (std::max)(0, delay);

@@ -126,6 +126,7 @@ public final class NetworkManager {
     }
 
     public void committed(ClientConnection connection, Packet<?> packet) {
+        long committedAt = System.nanoTime();
         PendingPacket tagged;
         synchronized (pending) { tagged = pending.remove(packet); }
         if (tagged == null || tagged.connection() != connection) return;
@@ -134,7 +135,7 @@ public final class NetworkManager {
                 0, 0, tagged.sequence(), tagged.epoch());
         if (reply.commitId() == 0) return;
         PacketCommitEvent notification = new PacketCommitEvent(packet, tagged.owner(),
-                tagged.actionId(), reply.commitId(), tagged.sequence(), tagged.slotTransaction(), tagged.slotPhase());
+                tagged.actionId(), reply.commitId(), tagged.sequence(), tagged.slotTransaction(), tagged.slotPhase(), committedAt);
         if (MinecraftClient.getInstance().isOnThread()) events.post(notification);
         else notifications.add(new CommitNotification(notification, tagged.epoch()));
     }

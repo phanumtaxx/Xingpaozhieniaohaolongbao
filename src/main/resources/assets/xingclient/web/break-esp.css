@@ -1,0 +1,24 @@
+#xing-break-esp {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 85;
+  pointer-events: none;
+  overflow: hidden;
+}
+.break-esp-edges {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.break-esp-label {
+  fill: currentColor;
+  font-family: "Xing Inter", sans-serif;
+  font-weight: 400;
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: #00000070;
+  stroke-width: 1px;
+}

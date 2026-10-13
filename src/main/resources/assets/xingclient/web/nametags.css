@@ -1,0 +1,42 @@
+.nametag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate3d(var(--world-x, 0px), var(--world-y, 0px), 0) translate(-50%, -100%);
+  will-change: transform;
+  border: none;
+  outline: none;
+  color: #f2f1f7;
+  font-family: "Xing Inter", sans-serif;
+  font-size: calc(var(--nametag-font, 6px) * var(--ui-scale));
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  user-select: none;
+  pointer-events: none;
+}
+.nametag[hidden] { display: none; }
+.nametag-heading {
+  display: flex;
+  align-items: center;
+  gap: calc(7px * var(--ui-scale));
+  padding: calc(var(--nametag-padding-y, 3.25px) * var(--ui-scale)) calc(var(--nametag-padding-x, 3.25px) * var(--ui-scale));
+  border-radius: calc(var(--nametag-corners, 2.25px) * var(--ui-scale));
+  background: var(--nametag-background, rgba(255, 255, 255, .2));
+  box-shadow: 0 calc(3px * var(--ui-scale)) calc(10px * var(--ui-scale)) #00000025;
+}
+.nametag-health { font-variant-numeric: tabular-nums; font-size: .92em; font-weight: 600; }
+.nametag-equipment {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px * var(--ui-scale));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: calc(2px * var(--ui-scale));
+}
+.nametag-equipment:empty { display: none; }
+.nametag-item { position: relative; width: calc(16px * var(--ui-scale)); height: calc(16px * var(--ui-scale)); }
+.nametag-item img { width: 100%; height: 100%; image-rendering: pixelated; }
+.nametag-count { position: absolute; right: 0; bottom: -1px; font-size: .7em; font-weight: 600; text-shadow: 0 1px 2px #000; }

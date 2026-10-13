@@ -1,43 +1,62 @@
 #include "pch.h"
 #include "CrashoutModule.h"
 #include <cmath>
-#include <chrono>
 
 namespace xing { namespace flight {
 namespace {
+constexpr double Radians = 0.017453292519943295;
 float wrapDegrees(float angle) {
     angle = std::fmod(angle, 360.0f);
     if (angle >= 180.0f) angle -= 360.0f;
     if (angle < -180.0f) angle += 360.0f;
     return angle;
 }
-float clamp(float value, float minimum, float maximum) {
-    return (std::max)(minimum, (std::min)(maximum, value));
 }
+
+void CrashoutModule::resetSteering() {
+    steeringReady_ = false;
+    still_ = false;
+    stillTicks_ = 0;
+    flipBaseYaw_ = 0.0f;
+    flipToggle_ = false;
+    hasFirework_ = false;
 }
 
 void CrashoutModule::resetFlight() {
-    still_ = false; stillTicks_ = 0; flipBaseYaw_ = 0.0f; flipToggle_ = false;
-    hasFirework_ = false; fireworkUsedAt_ = 0; lastFireworkDuration_ = -1.0;
+    resetSteering();
+    fireworkUsedAt_ = 0;
+    lastFireworkDuration_ = -1.0;
 }
 
-void CrashoutModule::reset() { resetFlight(); hotswap_.reset(); controlYaw_ = 0.0f; controlPitch_ = 0.0f; }
+void CrashoutModule::onServerCorrection() {
+    resetSteering();
+}
+
+void CrashoutModule::reset() {
+    resetFlight();
+    hotbarElytra_.reset();
+    failure_ = ElytraHotswapUtil::Failure::None;
+    controlYaw_ = 0.0f;
+}
 
 void CrashoutModule::disable(const FlightSnapshot& player, FlightGameAccess& game) {
-    hotswap_.restore(player.valid, player.alive, player.safeInventory, game);
+    hotbarElytra_.restore(game);
+    failure_ = hotbarElytra_.failure();
     game.clearRotation();
     resetFlight();
 }
 
-bool CrashoutModule::start(const FlightSnapshot& player, FlightGameAccess& game) {
-    if (player.onGround) return false;
-    const bool temporarySwap = !player.chestGlider;
-    if (temporarySwap && !hotswap_.equip(player.inventory, player.chest, player.safeInventory, game)) return false;
-    if (!game.healthy()) return false;
-    const bool started = game.startGliding();
-    // Restore the chest slot even when sending the start packet fails.
-    const bool restored = !temporarySwap || (game.healthy() && hotswap_.restore(player.valid, player.alive, player.safeInventory, game));
-    return started && restored;
+bool CrashoutModule::start(FlightSnapshot& player, FlightGameAccess& game) {
+    failure_ = ElytraHotswapUtil::Failure::None;
+    if (player.onGround || !player.alive) return false;
+    if (player.chestGlider) return game.startGliding();
+    const int slot = hotbarElytra_.prepare(player.inventory, player.selectedSlot, player.safeInventory, game);
+    if (slot < 0) { failure_ = hotbarElytra_.failure(); return false; }
+    if (!game.startGlidingWithElytra(slot)) {
+        failure_ = ElytraHotswapUtil::Failure::InventoryBusy;
+        return false;
+    }
+    return true;
 }
 
 float CrashoutModule::moveYaw(const FlightSnapshot& player) {
@@ -53,14 +72,14 @@ float CrashoutModule::moveYaw(const FlightSnapshot& player) {
     return wrapDegrees(yaw);
 }
 
-void CrashoutModule::rotate(const CrashoutSettings& settings,
+bool CrashoutModule::rotate(const CrashoutSettings& settings,
         float yaw, float pitch, FlightGameAccess& game) {
-    const float currentYaw = game.currentYaw();
-    const float currentPitch = game.currentPitch();
-    if (!game.healthy()) return;
-    controlYaw_ = wrapDegrees(currentYaw + clamp(wrapDegrees(yaw - currentYaw), -settings.turnSpeed, settings.turnSpeed));
-    controlPitch_ = clamp(currentPitch + clamp(pitch - currentPitch, -settings.turnSpeed, settings.turnSpeed), -90.0f, 90.0f);
-    game.requestRotation(controlYaw_, controlPitch_);
+    const movement::Rotation current = { game.currentYaw(), game.currentPitch() };
+    if (!game.healthy()) return false;
+    const auto rotation = movement::MovementController::steer(current, { yaw, pitch }, settings.turnSpeed);
+    if (!game.requestClientRotation(rotation.yaw, rotation.pitch)) return false;
+    controlYaw_ = rotation.yaw;
+    return true;
 }
 
 void CrashoutModule::useFirework(const FlightSnapshot& player, const CrashoutSettings& settings, FlightGameAccess& game) {
@@ -71,20 +90,31 @@ void CrashoutModule::useFirework(const FlightSnapshot& player, const CrashoutSet
     if (slot < 0) return;
     if (FireworkInventoryUtil::use(player.inventory, slot, player.safeInventory, game)) {
         lastFireworkDuration_ = FireworkInventoryUtil::durationSeconds(player.inventory[slot]);
-        fireworkUsedAt_ = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
+        fireworkUsedAt_ = player.nowMillis;
     }
 }
 
-void CrashoutModule::tick(const FlightSnapshot& player, const CrashoutSettings& settings, FlightGameAccess& game) {
-    if (!player.valid) { resetFlight(); return; }
-    if (hotswap_.active() && !hotswap_.restore(player.valid, player.alive, player.safeInventory, game)) {
-        game.clearRotation(); return;
+void CrashoutModule::tick(const FlightSnapshot& snapshot, const CrashoutSettings& settings, FlightGameAccess& game) {
+    if (!snapshot.valid || !snapshot.alive || snapshot.onGround) {
+        failure_ = ElytraHotswapUtil::Failure::None;
+        resetFlight();
+        game.clearRotation();
+        return;
     }
-    if (!game.healthy()) return;
+    if (!game.inventoryReady()) {
+        resetSteering();
+        failure_ = ElytraHotswapUtil::Failure::InventoryBusy;
+        game.clearRotation();
+        return;
+    }
+    failure_ = ElytraHotswapUtil::Failure::None;
+    FlightSnapshot player = snapshot;
     if (!player.gliding) {
         resetFlight();
-        if (!start(player, game)) { game.clearRotation(); return; }
+        if (!start(player, game)) {
+            game.clearRotation();
+            return;
+        }
     }
     if (!game.healthy()) return;
     const bool wasStill = still_;
@@ -97,43 +127,50 @@ void CrashoutModule::tick(const FlightSnapshot& player, const CrashoutSettings& 
     hasFirework_ = FireworkInventoryUtil::find(player.inventory, settings.inventoryFireworks) >= 0;
     const bool flipFlopping = still_ && (settings.flipFlop == FlipFlopMode::Full
         || (settings.flipFlop == FlipFlopMode::WithFirework && hasFirework_));
-    if (!still_) useFirework(player, settings, game);
-    if (!game.healthy()) return;
     if (flipFlopping) {
         game.setVelocity(0.0, 0.0, 0.0);
-        rotate(settings, flipToggle_ ? flipBaseYaw_ + 180.0f : flipBaseYaw_, 0.0f, game);
+        if (!rotate(settings, flipToggle_ ? flipBaseYaw_ + 180.0f : flipBaseYaw_, 0.0f, game)) {
+            resetSteering();
+            game.clearRotation();
+            return;
+        }
         flipToggle_ = !flipToggle_;
     } else if (!still_) {
         const bool jump = player.jump && !player.sneak;
         const bool sneak = player.sneak && !player.jump;
-        rotate(settings, moveYaw(player), jump ? -90.0f : sneak ? 90.0f : 0.0f, game);
-        if (jump || sneak) game.setVelocity(0.0, jump ? 1.0 : -1.0, 0.0);
+        if (!rotate(settings, moveYaw(player), jump ? -90.0f : sneak ? 90.0f : 0.0f, game)) {
+            resetSteering();
+            game.clearRotation();
+            return;
+        }
+        useFirework(player, settings, game);
     } else {
         game.setVelocity(0.0, 0.0, 0.0);
         game.clearRotation();
     }
+    if (!game.healthy()) return;
+    if (!still_) {
+        const auto velocity = movement::MovementController::limitHorizontal(player.velocity, settings.crashoutHorizontal);
+        if (velocity.x != player.velocity.x || velocity.z != player.velocity.z)
+            game.setVelocity(velocity.x, velocity.y, velocity.z);
+    }
+    steeringReady_ = game.healthy();
 }
 
-Movement CrashoutModule::applyMovement(const FlightSnapshot& player) const {
+Movement CrashoutModule::applyMovement(const FlightSnapshot& player, const CrashoutSettings& settings) const {
     if (!player.valid || !player.gliding) return player.movement;
-    if (still_) return {};
-    if (player.jump && !player.sneak) return { 0.0, 1.0, 0.0 };
-    if (player.sneak && !player.jump) return { 0.0, -1.0, 0.0 };
-    const double speed = (std::max)(0.08, std::hypot(player.movement.x, player.movement.z));
-    const double yaw = controlYaw_ * 0.017453292519943295;
+    const auto limited = movement::MovementController::limitHorizontal(player.movement, settings.crashoutHorizontal);
+    if (!steeringReady_) return limited;
+    if (still_) return { 0.0, 0.0, 0.0 };
+    if (player.jump != player.sneak) return limited;
+    const double speed = (std::max)(0.08, std::hypot(limited.x, limited.z));
+    const double yaw = controlYaw_ * Radians;
     return { -std::sin(yaw) * speed, player.movement.y * 0.35, std::cos(yaw) * speed };
 }
 
 bool CrashoutModule::allowMovementPacket(const FlightSnapshot& player, const CrashoutSettings& settings) const {
-    if (!player.valid || !player.gliding || !still_ || settings.flipFlop == FlipFlopMode::Full
+    if (!player.valid || !player.gliding || !steeringReady_ || !still_ || settings.flipFlop == FlipFlopMode::Full
         || (settings.flipFlop == FlipFlopMode::WithFirework && hasFirework_)) return true;
     return stillTicks_ % static_cast<unsigned int>((std::max)(1, settings.packetGap)) == 0;
 }
-bool CrashoutModule::hidePose(const FlightSnapshot& player, const CrashoutSettings& settings) const {
-    return player.valid && player.gliding && settings.hideFlyPose;
-}
-bool CrashoutModule::spoofChestplate(const FlightSnapshot& player, const CrashoutSettings& settings) const {
-    return player.valid && player.gliding && player.chestGlider && settings.spoofChestplate;
-}
-int CrashoutModule::chestplateSlot(const FlightSnapshot& player) const { return ArmorInventoryUtil::bestChestplate(player.inventory); }
 } }

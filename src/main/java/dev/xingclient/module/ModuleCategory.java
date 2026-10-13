@@ -6,7 +6,8 @@ public enum ModuleCategory {
     VISUALS("Visuals"),
     MOVEMENT("Movement"),
     MISCELLANEOUS("Miscellaneous"),
-    CORE("Core");
+    CORE("Core"),
+    HUD("HUD");
 
     private final String displayName;
 

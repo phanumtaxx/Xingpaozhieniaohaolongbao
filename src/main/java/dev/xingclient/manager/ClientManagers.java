@@ -14,6 +14,7 @@ public final class ClientManagers {
     public final CombatActionState combatActions = new CombatActionState(bridge);
     public final CrystalActionState crystalActions = new CrystalActionState(bridge);
     public final MovementStateManager movementState = new MovementStateManager();
+    public final PacketMineManager mining;
     public final NetworkManager network;
     public final InventoryManager inventory;
     public final RotationManager rotations;
@@ -30,6 +31,7 @@ public final class ClientManagers {
         inventory = new InventoryManager(bridge, network, scheduler, serverState, events);
         rotations = new RotationManager(bridge, network, scheduler);
         interactions = new InteractionManager(network, inventory, scheduler, rotations);
+        mining = new PacketMineManager(this, events);
     }
 
     public void tick(MinecraftClient client) {
@@ -42,11 +44,13 @@ public final class ClientManagers {
         serverState.tick(client);
         inventory.tick();
         rotations.tick();
+        mining.tick(client);
     }
 
     public void synchronizeWorld(MinecraftClient client) {
         CombatActionScheduler.requireClientThread();
         if (world != client.world || connection != client.getNetworkHandler()) {
+            mining.reset();
             scheduler.reset();
             network.reset();
             bridge.reset();
@@ -59,6 +63,7 @@ public final class ClientManagers {
     }
 
     public void release(ActionOwner owner) {
+        mining.release(owner);
         try { scheduler.cancelOwner(owner); }
         finally {
             try { inventory.release(owner); }

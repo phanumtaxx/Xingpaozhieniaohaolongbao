@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "FlightInventory.h"
 #include <limits>
+#include <utility>
 
 namespace xing { namespace flight {
 int ArmorInventoryUtil::menuSlot(int slot) { return slot < 9 ? slot + 36 : slot; }
@@ -49,7 +50,7 @@ bool ElytraHotswapUtil::equip(const InventorySnapshot& inventory, const ItemSnap
     if (usable(chest)) return true;
     if (active()) { failure_ = Failure::SwapFailed; return false; }
     const int candidate = find(inventory);
-    if (candidate < 0) { failure_ = Failure::NoUsableElytra; return false; }
+    if (candidate < 0 || !usable(inventory[candidate])) { failure_ = Failure::NoUsableElytra; return false; }
     if (!safe) { failure_ = Failure::UnsafeInventory; return false; }
     if (!game.swapChest(candidate, ArmorInventoryUtil::menuSlot(candidate))) {
         failure_ = Failure::SwapFailed;
@@ -73,6 +74,46 @@ bool ElytraHotswapUtil::restore(bool valid, bool alive, bool safe, FlightGameAcc
 }
 
 void ElytraHotswapUtil::reset() { inventorySlot_ = -1; failure_ = Failure::None; }
+
+int HotbarElytraUtil::prepare(InventorySnapshot& inventory, int selectedSlot, bool safe, FlightGameAccess& game) {
+    using Failure = ElytraHotswapUtil::Failure;
+    failure_ = Failure::None;
+    if (!safe) { failure_ = Failure::UnsafeInventory; return -1; }
+    if (stagedSlot_ >= 0) {
+        if (ElytraHotswapUtil::usable(inventory[stagedSlot_]) && game.stagedElytraMatches()) return stagedSlot_;
+        failure_ = Failure::SwapFailed;
+        return -1;
+    }
+    const int source = ElytraHotswapUtil::find(inventory);
+    if (source < 0) { failure_ = Failure::NoUsableElytra; return -1; }
+    if (source < 9) return source;
+    int hotbar = -1;
+    for (int slot = 0; slot < 9; ++slot) {
+        if (slot != selectedSlot && inventory[slot].empty) { hotbar = slot; break; }
+    }
+    if (hotbar < 0) {
+        for (int slot = 0; slot < 9; ++slot) {
+            if (slot != selectedSlot && !inventory[slot].rocket) { hotbar = slot; break; }
+        }
+    }
+    if (hotbar < 0 || !game.stageElytra(source, hotbar)) { failure_ = Failure::InventoryBusy; return -1; }
+    stagedSlot_ = hotbar;
+    std::swap(inventory[source], inventory[hotbar]);
+    return hotbar;
+}
+
+bool HotbarElytraUtil::restore(FlightGameAccess& game) {
+    cleanupPending_ = !game.restoreFlightEquipment();
+    if (cleanupPending_) { failure_ = ElytraHotswapUtil::Failure::SwapFailed; return false; }
+    reset();
+    return true;
+}
+
+void HotbarElytraUtil::reset() {
+    stagedSlot_ = -1;
+    cleanupPending_ = false;
+    failure_ = ElytraHotswapUtil::Failure::None;
+}
 
 int FireworkInventoryUtil::find(const InventorySnapshot& inventory, bool includeInventory) {
     const int limit = includeInventory ? 36 : 9;
